@@ -48,6 +48,7 @@ charts/firefly/local-values.yaml:
 	cp ./charts/firefly/ci/eth-values.yaml charts/firefly/local-values.yaml
 
 deploy:
+	helm dependency build charts/firefly
 	helm upgrade -i firefly ./charts/firefly -f ./charts/firefly/local-values.yaml
 
 test:
@@ -57,6 +58,7 @@ e2e: kind deps test
 
 stack: kind deps besu
 	helm upgrade -i firefly-signer ./charts/firefly-signer -f ./charts/firefly/values.yaml
+	helm dependency build charts/firefly
 	helm upgrade -i firefly ./charts/firefly -f ./charts/firefly/local-kind-values.yaml
 
 clean-stack:
