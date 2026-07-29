@@ -10,6 +10,8 @@ backend:
 signer:
   enabled: true
 
+  # WARNING: Never use these keys in a production network
+
   # The Ethereum address (no 0x prefix) of the signing key below. Must match the address embedded in `keystore`.
   address: "75a99473917701038e854ef6999c76cd947c9f9e"
 

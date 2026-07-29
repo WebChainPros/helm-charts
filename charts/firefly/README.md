@@ -1,6 +1,6 @@
 # FireFly
 
-[Hyperledger FireFly](https://hyperledger.github.io/firefly/) is an implementation of a [multi-party system](https://github.com/hyperledger-firefly/firefly#multi-party-systems)
+[Hyperledger FireFly](https://hyperledger-firefly.github.io/firefly/) is an implementation of a [multi-party system](https://hyperledger-firefly.github.io/firefly/latest/overview/multiparty/)
 that simplifies data orchestration on top of blockchain and other peer-to-peer technologies.
 
 This chart bootstraps a FireFly deployment on a [Kubernetes](https://kubernetes.io/) cluster using the [Helm](https://helm.sh/)
