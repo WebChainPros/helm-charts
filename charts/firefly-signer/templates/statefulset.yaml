@@ -87,12 +87,12 @@ spec:
             - mountPath: /etc/signer/config.yaml
               name: config
               subPath: config.yaml
-            - mountPath: /data/keystore/75a99473917701038e854ef6999c76cd947c9f9e
+            - mountPath: /data/keystore/{{ .Values.signer.address }}
               name: keystore
-              subPath: 75a99473917701038e854ef6999c76cd947c9f9e
-            - mountPath: /data/keystore/75a99473917701038e854ef6999c76cd947c9f9e.toml
+              subPath: {{ .Values.signer.address }}
+            - mountPath: /data/keystore/{{ .Values.signer.address }}.toml
               name: keystore
-              subPath: 75a99473917701038e854ef6999c76cd947c9f9e.toml
+              subPath: {{ .Values.signer.address }}.toml
             - mountPath: /data/password
               name: keystore
               subPath: password        

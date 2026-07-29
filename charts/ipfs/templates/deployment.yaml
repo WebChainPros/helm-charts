@@ -80,6 +80,14 @@ spec:
               value: "/data/ipfs"
           resources:
       {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: container-init
+              mountPath: /container-init.d
+      volumes:
+        - name: container-init
+          configMap:
+            name: {{ include "ipfs.fullname" . }}-container-init
+            defaultMode: 0555
       {{- with .Values.nodeSelector }}
       nodeSelector:
       {{- toYaml . | nindent 8 }}
