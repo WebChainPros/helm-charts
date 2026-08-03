@@ -37,7 +37,12 @@ deps:
 	kubectl apply -n cert-manager -f manifests/tls-issuers.yaml
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
 	helm upgrade --install --set kubeStateMetrics.enabled=false --set nodeExporter.enabled=false --set grafana.enabled=false kube-prometheus prometheus-community/kube-prometheus-stack
-	helm upgrade --install --set global.postgresql.auth.postgresPassword=firef1y --set extraEnv[0].name=POSTGRES_DATABASE --set extraEnv[0].value=firefly postgresql oci://registry-1.docker.io/bitnamicharts/postgresql
+	helm upgrade --install postgresql oci://registry-1.docker.io/bitnamicharts/postgresql \
+		--version 16.7.27 \
+		--set global.postgresql.auth.postgresPassword=firef1y \
+		--set image.repository=bitnamilegacy/postgresql \
+		--set volumePermissions.image.repository=bitnamilegacy/os-shell \
+		--set metrics.image.repository=bitnamilegacy/postgres-exporter
 	kubectl create secret generic custom-psql-config --dry-run --from-literal="url=postgres://postgres:firef1y@postgresql.default.svc:5432/postgres?sslmode=disable" -o json | kubectl apply -f -
 	kubectl apply -n default -f manifests/mtls-cert.yaml
 	helm upgrade --install ipfs ./charts/ipfs -f ./charts/ipfs/values.yaml
