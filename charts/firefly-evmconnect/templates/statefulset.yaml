@@ -84,8 +84,10 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            {{- if eq .Values.config.persistence.type "leveldb" }}
             - mountPath: /var/run/leveldb
               name: evmconnect
+            {{- end }}
             - mountPath: /etc/evmconnect/config.yaml
               name: config
               subPath: config.yaml

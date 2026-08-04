@@ -433,7 +433,9 @@ namespaces:
         {{- else if .Values.config.fabconnectUrl }}
         - fabric0
         {{- end }}
+        {{- if .Values.dataexchange.enabled }}
         - dataexchange0
+        {{- end }}
         - sharedstorage0
         {{- if .Values.erc1155.enabled }}
         - erc1155

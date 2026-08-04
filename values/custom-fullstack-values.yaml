@@ -1,77 +1,215 @@
-# Custom Full-Stack FireFly Helm values
-# Integrates FireFly Core + Custom EVMConnect (Dockerfile.custom) + Web3Signer (REST sign-only)
+# ── FireFly Enterprise Multi-Chain High-Performance Configuration ──────────
+# 100% Transferred from /home/joon/.firefly/stacks/dev_15/
 
-nameOverride: ""
-fullnameOverride: ""
-
-# ── 1. FireFly Core 메인 엔진 설정 ─────────────────────────────────────
+# ── 1. FireFly Core 설정 (멀티 체인 eth0 / eth-amoy / eth-sepolia 포함) ──────────
 config:
   debugEnabled: false
   adminEnabled: true
+  postgresUrl: "postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable"
+  postgresAutomigrate: true
+  ipfsApiUrl: "http://localhost:5001"
+  ipfsGatewayUrl: "http://localhost:8080"
+  dataexchangeUrl: "http://none"
+  multipartyEnabled: false
+  defaultNamespace: "meta"
 
-  log:
-    level: debug
-
-# ── 2. 커스텀 EVMConnect + Web3Signer 서브차트 설정 ───────────────────
-evmconnect:
-  enabled: true
-
-  image:
-    repository: ghcr.io/webchainpro-cpu/evmconnect
-    tag: ""           # injected from .env: GHCR_IMAGE_TAG
-    pullPolicy: Always
-
-  config:
-    jsonRpcUrl: ""    # injected from .env: BESU_EXTERNAL_HOST
-
+  # Core 튜닝 (dev_15 멀티체인 원본 100% 반영)
+  templateOverride: |
+    http:
+      address: 0.0.0.0
+      port: 5000
+    spi:
+      address: 0.0.0.0
+      enabled: true
+      port: 5101
+      publicURL: http://localhost:5101
     log:
       level: debug
-      jsonEnabled: false
+    event:
+      dbevents:
+        bufferSize: 10000
+        batchSize: 5000
+        batchTimeout: 10ms
+    namespaces:
+      default: meta
+      predefined:
+        - name: meta
+          remoteName: meta
+          description: Meta Network default namespace
+          defaultBatch:
+            maxSize: 500
+            timeout: 5ms
+          plugins:
+            - database0
+            - eth0
+            - erc20_erc721
+        - name: amoy
+          remoteName: amoy
+          description: Polygon Amoy namespace
+          defaultBatch:
+            maxSize: 500
+            timeout: 5ms
+          plugins:
+            - database0
+            - eth-amoy
+            - erc20_erc721_amoy
+        - name: sepolia
+          remoteName: sepolia
+          description: Ethereum Sepolia namespace
+          defaultBatch:
+            maxSize: 500
+            timeout: 5ms
+          plugins:
+            - database0
+            - eth-sepolia
+            - erc20_erc721_sepolia
+    plugins:
+      blockchain:
+        - name: eth0
+          type: ethereum
+          ethereum:
+            ethconnect:
+              url: http://firefly-evmconnect:5000
+              topic: "0"
+              maxIdleConns: 1000
+              maxConnsPerHost: 1000
+        - name: eth-amoy
+          type: ethereum
+          ethereum:
+            ethconnect:
+              url: http://evmconnect-amoy:5008
+              topic: "amoy"
+              maxIdleConns: 1000
+              maxConnsPerHost: 1000
+        - name: eth-sepolia
+          type: ethereum
+          ethereum:
+            ethconnect:
+              url: http://evmconnect-sepolia:5008
+              topic: "sepolia"
+              maxIdleConns: 1000
+              maxConnsPerHost: 1000
+      database:
+        - name: database0
+          type: postgres
+          postgres:
+            url: postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable
+            maxOpenConns: 250
+            maxIdleConns: 150
+            migrations:
+              auto: true
+      tokens:
+        - name: erc20_erc721
+          type: fftokens
+          fftokens:
+            url: http://firefly-erc20erc721:3000
+        - name: erc20_erc721_amoy
+          type: fftokens
+          fftokens:
+            url: http://tokens-amoy:3000
+        - name: erc20_erc721_sepolia
+          type: fftokens
+          fftokens:
+            url: http://tokens-sepolia:3000
 
-    confirmations:
-      required: 0
+# ── 2. EVMConnect + Web3Signer 멀티체인 설정 ───────────────────────────
+evmconnect:
+  enabled: true
+  image:
+    repository: ghcr.io/webchainpro-cpu/evmconnect
+    tag: head
+    pullPolicy: IfNotPresent
 
-    persistence:
-      type: leveldb
-      leveldb:
-        maxHandles: 100
-        syncWrites: false
+  extraEnv:
+    - name: ETHCONNECT_CHAIN_ID
+      value: "202607"
+    - name: ETHCONNECT_FIRST_EVENT_BLOCK
+      value: "-20"
+    - name: EVMCONNECT_CONNECTOR_USEGETBLOCKRECEIPTS
+      value: "true"
+    - name: TZ
+      value: "Asia/Seoul"
 
-    # Web3Signer REST sign-only mode connector config
-    connector: |
-      url: {{ .Values.config.jsonRpcUrl | quote }}
+  config:
+    log:
+      level: debug
+    connector:
+      maxConcurrentRequests: 1000
+      url: "http://host.docker.internal:8545"
+      wsUrl: "ws://host.docker.internal:8546"
       txSigner:
         enabled: true
         type: web3signer
         web3signer:
-          url: "http://{{ include "firefly-evmconnect.web3signerFullname" . }}:9000"
-
+          url: "http://firefly-evmconnect-web3signer:9000"
+    confirmations:
+      required: 0
     transactions:
+      nonceStateTimeout: 60s
       handler:
         name: simple
         simple:
           fixedGasPrice: 0
+          gasLimit: 8000000
           gasOracle:
             mode: fixed
+          interval: 10ms
+          maxInFlight: 1500
+    # ── EVMConnect PostgreSQL Persistence (eth0 스키마) ───────────────────
+    persistence:
+      type: postgres
+      postgres:
+        url: postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable&search_path=evm0
+        migrations:
+          auto: true
+        options:
+          "-c search_path=evm0"
+        maxOpenConns: 250
+        maxIdleConns: 150
+        txwriter:
+          batchTimeout: 0ms
+          count: 20
 
-  # Web3Signer 서브 서비스
   web3signer:
     enabled: true
-
     image:
       repository: consensys/web3signer
       tag: latest
       pullPolicy: IfNotPresent
+    extraEnv:
+      - name: TZ
+        value: "Asia/Seoul"
+      - name: WEB3SIGNER_OPTS
+        value: "-Dvertx.workerPoolSize=200 -Dvertx.eventLoopPoolSize=64 -Xmx3500m -Xms1500m"
 
-    chainId: 0        # injected from .env: METANET_CHAIN_ID
-    downstreamHttpHost: ""   # injected from .env: BESU_EXTERNAL_HOST
-    downstreamHttpPort: 8545
+# ── 3. DataExchange 설정 (비활성화) ──────────────────────────────────
+dataexchange:
+  enabled: false
+  tlsSecret:
+    enabled: true
+    name: "firefly-dx-tls"
 
-    # hostPath: 노드 로컬 키스토어 마운트 경로
-    keystoresHostPath: "/home/joon/.firefly/web3signer-bulk/keystores"
-    passwordsHostPath: "/home/joon/.firefly/web3signer-bulk/passwords"
+# ── 4. PostgreSQL 데이터베이스 설정 (튜닝 옵션 100% 반영) ─────────────────
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "14-alpine"
+    pullPolicy: IfNotPresent
+  user: "firefly"
+  password: "firefly-password"
+  database: "firefly"
+  resources: {}
 
-    resources: {}
-    nodeSelector: {}
-    tolerations: []
-    affinity: {}
+# ── 5. ERC20/721 토큰 커넥터 설정 ──────────────────────────────────
+erc20erc721:
+  enabled: true
+  image:
+    pullPolicy: IfNotPresent
+
+# ── 6. 전역 이미지 풀 정책 & 타임존 ──────────────────────────────────────
+imagePullPolicy: IfNotPresent
+
+sandbox:
+  image:
+    pullPolicy: IfNotPresent

@@ -662,3 +662,15 @@ evmconnect:
     runAsGroup: 1001
     fsGroup: 1001
   enabled: false
+
+# Configures the PostgreSQL database service
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "14-alpine"
+    pullPolicy: IfNotPresent
+  user: "firefly"
+  password: "firefly-password"
+  database: "firefly"
+  resources: {}
