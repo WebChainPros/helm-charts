@@ -1,0 +1,77 @@
+# Custom Full-Stack FireFly Helm values
+# Integrates FireFly Core + Custom EVMConnect (Dockerfile.custom) + Web3Signer (REST sign-only)
+
+nameOverride: ""
+fullnameOverride: ""
+
+# ── 1. FireFly Core 메인 엔진 설정 ─────────────────────────────────────
+config:
+  debugEnabled: false
+  adminEnabled: true
+
+  log:
+    level: debug
+
+# ── 2. 커스텀 EVMConnect + Web3Signer 서브차트 설정 ───────────────────
+evmconnect:
+  enabled: true
+
+  image:
+    repository: ghcr.io/webchainpro-cpu/evmconnect
+    tag: ""           # injected from .env: GHCR_IMAGE_TAG
+    pullPolicy: Always
+
+  config:
+    jsonRpcUrl: ""    # injected from .env: BESU_EXTERNAL_HOST
+
+    log:
+      level: debug
+      jsonEnabled: false
+
+    confirmations:
+      required: 0
+
+    persistence:
+      type: leveldb
+      leveldb:
+        maxHandles: 100
+        syncWrites: false
+
+    # Web3Signer REST sign-only mode connector config
+    connector: |
+      url: {{ .Values.config.jsonRpcUrl | quote }}
+      txSigner:
+        enabled: true
+        type: web3signer
+        web3signer:
+          url: "http://{{ include "firefly-evmconnect.web3signerFullname" . }}:9000"
+
+    transactions:
+      handler:
+        name: simple
+        simple:
+          fixedGasPrice: 0
+          gasOracle:
+            mode: fixed
+
+  # Web3Signer 서브 서비스
+  web3signer:
+    enabled: true
+
+    image:
+      repository: consensys/web3signer
+      tag: latest
+      pullPolicy: IfNotPresent
+
+    chainId: 0        # injected from .env: METANET_CHAIN_ID
+    downstreamHttpHost: ""   # injected from .env: BESU_EXTERNAL_HOST
+    downstreamHttpPort: 8545
+
+    # hostPath: 노드 로컬 키스토어 마운트 경로
+    keystoresHostPath: "/home/joon/.firefly/web3signer-bulk/keystores"
+    passwordsHostPath: "/home/joon/.firefly/web3signer-bulk/passwords"
+
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}

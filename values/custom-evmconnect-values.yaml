@@ -1,0 +1,65 @@
+# Custom EVMConnect Helm values
+# Web3Signer REST signing-only mode + custom image (Dockerfile.custom)
+# Sensitive/env-specific values are injected via deploy.sh from values/.env
+
+# ── EVMConnect custom image ──────────────────────────────────────────
+image:
+  repository: ghcr.io/hyperledger-firefly/custom-evmconnect
+  tag: ""           # injected from .env: GHCR_IMAGE_TAG
+  pullPolicy: Always
+
+# ── EVMConnect config ────────────────────────────────────────────────
+config:
+  jsonRpcUrl: ""    # injected from .env: BESU_EXTERNAL_HOST
+
+  log:
+    level: debug
+    jsonEnabled: false
+
+  confirmations:
+    required: 0
+
+  persistence:
+    type: leveldb
+    leveldb:
+      maxHandles: 100
+      syncWrites: false
+
+  # Web3Signer REST sign-only mode connector config
+  connector: |
+    url: {{ .Values.config.jsonRpcUrl | quote }}
+    txSigner:
+      enabled: true
+      type: web3signer
+      web3signer:
+        url: "http://{{ include "firefly-evmconnect.web3signerFullname" . }}:9000"
+
+  transactions:
+    handler:
+      name: simple
+      simple:
+        fixedGasPrice: 0
+        gasOracle:
+          mode: fixed
+
+# ── Web3Signer config ────────────────────────────────────────────────
+web3signer:
+  enabled: true
+
+  image:
+    repository: consensys/web3signer
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  chainId: 0        # injected from .env: METANET_CHAIN_ID
+  downstreamHttpHost: ""   # injected from .env: BESU_EXTERNAL_HOST
+  downstreamHttpPort: 8545
+
+  # hostPath: node-local keystore directories (318 keys)
+  keystoresHostPath: "/home/joon/.firefly/web3signer-bulk/keystores"
+  passwordsHostPath: "/home/joon/.firefly/web3signer-bulk/passwords"
+
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

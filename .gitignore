@@ -214,3 +214,5 @@ $RECYCLE.BIN/
 
 besu
 besu-chart
+# Local environment variables (never commit)
+values/.env

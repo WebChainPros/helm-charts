@@ -50,3 +50,31 @@ app.kubernetes.io/name: {{ include "firefly-evmconnect.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/component: evmconnect
 {{- end }}
+
+{{/*
+Web3Signer fullname
+*/}}
+{{- define "firefly-evmconnect.web3signerFullname" -}}
+{{- printf "%s-web3signer" (include "firefly-evmconnect.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{/*
+Web3Signer selector labels
+*/}}
+{{- define "firefly-evmconnect.web3signerSelectorLabels" -}}
+app.kubernetes.io/name: {{ include "firefly-evmconnect.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: web3signer
+{{- end }}
+
+{{/*
+Web3Signer labels
+*/}}
+{{- define "firefly-evmconnect.web3signerLabels" -}}
+helm.sh/chart: {{ include "firefly-evmconnect.chart" . }}
+{{ include "firefly-evmconnect.web3signerSelectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}

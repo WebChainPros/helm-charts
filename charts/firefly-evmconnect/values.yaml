@@ -72,3 +72,32 @@ config:
   webhooks: {}
 
   eventstreams: {}
+
+# Configures the Web3Signer service for REST-based signing (sign-only mode)
+web3signer:
+  enabled: false
+
+  image:
+    repository: consensys/web3signer
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  imagePullSecrets: []
+
+  # The chain ID of the blockchain network (required)
+  chainId: 1337
+
+  # Downstream Besu/Geth node host (used by web3signer proxy internally)
+  downstreamHttpHost: "127.0.0.1"
+  downstreamHttpPort: 8545
+
+  # Host paths for keystore and password files (hostPath mount)
+  # These directories must exist on the node running the pod
+  keystoresHostPath: "/opt/web3signer/keystores"
+  passwordsHostPath: "/opt/web3signer/passwords"
+
+  resources: {}
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
