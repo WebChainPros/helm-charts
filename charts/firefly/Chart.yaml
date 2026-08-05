@@ -22,7 +22,7 @@ description: |
   ability to template additional multi-party or gateway namespaces.
 type: application
 
-appVersion: "1.5.0-rc.1"
+appVersion: "1.5.0"
 
 # Generally we follow this practice for updates to the chart version number:
 #  - Significant changes to the structure or purpose of the chart (major version update)
