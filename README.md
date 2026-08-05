@@ -17,7 +17,7 @@ make stack
 This will create a pre-set environment with the following configuration:
 
 - Runs all containers in [kind](https://kind.sigs.k8s.io/)
-- Sets up a PostgreSQL DB in the K8s cluster
+- Sets up a PostgreSQL DB in the K8s cluster. **Note: This uses a legacy Bitnami image due to [license changes](https://github.com/bitnami/charts/issues/35164).**
 - Creates a basic single node Besu blockchain also running in the K8s cluster
 - Sets up FireFly and all of its dependencies to use these services
 - Sets up an ERC-20 / ERC-721 Token Connector in this stack
