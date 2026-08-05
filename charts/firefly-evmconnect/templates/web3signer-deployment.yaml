@@ -1,13 +1,11 @@
 {{/*
-  Copyright 2024 Kaleido, Inc.
-  SPDX-License-Identifier: Apache-2.0
+  Web3Signer Deployment with Keystores/Passwords Volume Mounts & JVM Worker Pool Tuning
 */}}
-
 {{- if .Values.web3signer.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "firefly-evmconnect.web3signerFullname" . }}
+  name: {{ include "firefly-evmconnect.fullname" . }}-web3signer
   labels:
     {{- include "firefly-evmconnect.web3signerLabels" . | nindent 4 }}
 spec:
@@ -20,45 +18,28 @@ spec:
       labels:
         {{- include "firefly-evmconnect.web3signerSelectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.web3signer.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       containers:
         - name: web3signer
           image: "{{ .Values.web3signer.image.repository }}:{{ .Values.web3signer.image.tag }}"
           imagePullPolicy: {{ .Values.web3signer.image.pullPolicy }}
           args:
-            - --http-listen-port=9000
-            - --http-host-allowlist=*
-            - eth1
-            - --chain-id={{ .Values.web3signer.chainId | int64 }}
-            - --keystores-path=/opt/web3signer/keystores
-            - --keystores-passwords-path=/opt/web3signer/passwords
-            - --downstream-http-host={{ .Values.web3signer.downstreamHttpHost }}
-            - --downstream-http-port={{ .Values.web3signer.downstreamHttpPort | int }}
+            - "--http-listen-port=9000"
+            - "--http-host-allowlist=*"
+            - "eth1"
+            - "--chain-id=202607"
+            - "--keystores-path=/opt/web3signer/keystores"
+            - "--keystores-passwords-path=/opt/web3signer/passwords"
+            - "--downstream-http-host={{ .Values.config.besuExternalHost | default "host.docker.internal" }}"
+            - "--downstream-http-port=8545"
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+            - name: WEB3SIGNER_OPTS
+              value: "-Dvertx.workerPoolSize=200 -Dvertx.eventLoopPoolSize=64 -Xmx3500m -Xms1500m"
           ports:
             - name: http
               containerPort: 9000
               protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /healthcheck
-              port: http
-            initialDelaySeconds: 10
-            failureThreshold: 10
-            successThreshold: 1
-            periodSeconds: 5
-          readinessProbe:
-            httpGet:
-              path: /healthcheck
-              port: http
-            initialDelaySeconds: 5
-            failureThreshold: 20
-            successThreshold: 1
-            periodSeconds: 3
-          resources:
-            {{- toYaml .Values.web3signer.resources | nindent 12 }}
           volumeMounts:
             - name: keystores
               mountPath: /opt/web3signer/keystores
@@ -68,23 +49,9 @@ spec:
               readOnly: true
       volumes:
         - name: keystores
-          hostPath:
-            path: {{ .Values.web3signer.keystoresHostPath }}
-            type: Directory
+          secret:
+            secretName: web3signer-keystores
         - name: passwords
-          hostPath:
-            path: {{ .Values.web3signer.passwordsHostPath }}
-            type: Directory
-      {{- with .Values.web3signer.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.web3signer.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.web3signer.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+          secret:
+            secretName: web3signer-passwords
 {{- end }}
