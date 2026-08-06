@@ -3,6 +3,7 @@
 
 # ── 1. FireFly Core 설정 (멀티 체인 eth0 / eth-amoy / eth-sepolia 포함) ──────────
 config:
+  metricsEnabled: true
   debugEnabled: false
   adminEnabled: true
   postgresUrl: "postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable"
@@ -23,6 +24,8 @@ config:
       enabled: true
       port: 5101
       publicURL: http://localhost:5101
+    ui:
+      path: /firefly/frontend
     log:
       level: debug
     event:
@@ -102,7 +105,7 @@ config:
         - name: erc20_erc721
           type: fftokens
           fftokens:
-            url: http://firefly-erc20erc721:3000
+            url: http://firefly-erc20-erc721:3000
         - name: erc20_erc721_amoy
           type: fftokens
           fftokens:
