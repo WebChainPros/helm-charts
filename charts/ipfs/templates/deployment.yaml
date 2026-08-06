@@ -78,6 +78,8 @@ spec:
               value: "/key/swarm/psk/1.0.0/\n/base16/\n4c7bb736979e508ac819cdc3f498cde999b921c036f7560028aa159591e6f939"
             - name: IPFS_PATH
               value: "/data/ipfs"
+            - name: IPFS_PROFILE
+              value: "autoconf-off"
           resources:
       {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

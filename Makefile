@@ -1,4 +1,4 @@
-
+.PHONY: besu deps stack
 
 all: lint e2e
 
@@ -23,7 +23,7 @@ lint:
 besu:
 	kubectl --namespace default apply -f  ./values/monitoring/
 	mkdir -p besu
-	git clone --depth 1 https://github.com/Consensys/quorum-kubernetes besu-chart
+	git -C besu-chart pull || git clone --depth 1 https://github.com/Consensys/quorum-kubernetes besu-chart
 	helm upgrade --install genesis ./besu-chart/helm/charts/besu-genesis --namespace default --create-namespace --values ./values/genesis-besu.yml
 	kubectl --namespace default wait --for=condition=complete job/besu-genesis-init --timeout=600s
 	helm upgrade --install validator-1 ./besu-chart/helm/charts/besu-node --namespace default --values ./values/validator.yml
@@ -37,8 +37,12 @@ deps:
 	kubectl apply -n cert-manager -f manifests/tls-issuers.yaml
 	helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
 	helm upgrade --install --set kubeStateMetrics.enabled=false --set nodeExporter.enabled=false --set grafana.enabled=false kube-prometheus prometheus-community/kube-prometheus-stack
-	helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami || true
-	helm upgrade --install --set global.postgresql.auth.postgresPassword=firef1y --set extraEnv[0].name=POSTGRES_DATABASE --set extraEnv[0].value=firefly postgresql bitnami/postgresql --version 14.3.0
+	helm upgrade --install postgresql oci://registry-1.docker.io/bitnamicharts/postgresql \
+		--version 16.7.27 \
+		--set global.postgresql.auth.postgresPassword=firef1y \
+		--set image.repository=bitnamilegacy/postgresql \
+		--set volumePermissions.image.repository=bitnamilegacy/os-shell \
+		--set metrics.image.repository=bitnamilegacy/postgres-exporter
 	kubectl create secret generic custom-psql-config --dry-run --from-literal="url=postgres://postgres:firef1y@postgresql.default.svc:5432/postgres?sslmode=disable" -o json | kubectl apply -f -
 	kubectl apply -n default -f manifests/mtls-cert.yaml
 	helm upgrade --install ipfs ./charts/ipfs -f ./charts/ipfs/values.yaml
@@ -49,6 +53,7 @@ charts/firefly/local-values.yaml:
 	cp ./charts/firefly/ci/eth-values.yaml charts/firefly/local-values.yaml
 
 deploy:
+	helm dependency build charts/firefly
 	helm upgrade -i firefly ./charts/firefly -f ./charts/firefly/local-values.yaml
 
 test:
@@ -58,6 +63,7 @@ e2e: kind deps test
 
 stack: kind deps besu
 	helm upgrade -i firefly-signer ./charts/firefly-signer -f ./charts/firefly/values.yaml
+	helm dependency build charts/firefly
 	helm upgrade -i firefly ./charts/firefly -f ./charts/firefly/local-kind-values.yaml
 
 clean-stack:

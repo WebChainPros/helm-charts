@@ -203,7 +203,7 @@ config:
 # Configures the properties of the StatefulSet, Service, and optionally Ingress used to deploy and expose FireFly
 core:
   image:
-    repository: ghcr.io/hyperledger/firefly
+    repository: ghcr.io/hyperledger-firefly/firefly
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     # tag: ""
@@ -326,9 +326,9 @@ dataexchange:
     #   value: DEBUG
 
   image:
-    repository: ghcr.io/hyperledger/firefly-dataexchange-https
+    repository: ghcr.io/hyperledger-firefly/dataexchange-https
     pullPolicy: IfNotPresent
-    tag: v1.3.2
+    tag: v1.4.0
 
   imagePullSecrets: []
   nameOverride: ""
@@ -411,7 +411,7 @@ erc1155:
   ethconnectTopic: "tokensERC1155"
 
   image:
-    repository: ghcr.io/hyperledger/firefly-tokens-erc1155
+    repository: ghcr.io/hyperledger-firefly/tokens-erc1155
     pullPolicy: IfNotPresent
     tag: v1.3.6
 
@@ -485,9 +485,9 @@ erc20erc721:
       enabled: true
 
   image:
-    repository: ghcr.io/hyperledger/firefly-tokens-erc20-erc721
+    repository: ghcr.io/hyperledger-firefly/tokens-erc20-erc721
     pullPolicy: IfNotPresent
-    tag: v1.3.6
+    tag: v1.3.7
 
   imagePullSecrets: []
 
@@ -568,9 +568,9 @@ ethconnect:
     # runAsUser: 1000
 
   image:
-    repository: ghcr.io/hyperledger/firefly-ethconnect
+    repository: ghcr.io/hyperledger-firefly/ethconnect
     pullPolicy: Always
-    tag: v3.3.3
+    tag: v3.4.0
 
   extraEnv: []
     # - name: LOG_LEVEL
@@ -626,7 +626,7 @@ sandbox:
   imagePullSecrets: []
 
   image:
-    repository: ghcr.io/hyperledger/firefly-sandbox
+    repository: ghcr.io/hyperledger-firefly/sandbox
     pullPolicy: IfNotPresent
     tag: v1.1.7
 

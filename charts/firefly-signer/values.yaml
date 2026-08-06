@@ -1,7 +1,7 @@
 image:
-  repository: ghcr.io/hyperledger/firefly-signer
+  repository: ghcr.io/hyperledger-firefly/signer
   pullPolicy: IfNotPresent
-  tag: "v1.1.22"
+  tag: "v1.2.1"
 
 backend:
   url: http://besu-node-validator-1.default.svc.cluster.local:8545
@@ -9,6 +9,17 @@ backend:
 
 signer:
   enabled: true
+
+  # WARNING: Never use these keys in a production network
+
+  # The Ethereum address (no 0x prefix) of the signing key below. Must match the address embedded in `keystore`.
+  address: "75a99473917701038e854ef6999c76cd947c9f9e"
+
+  # A V3 keystore JSON blob for the signing key, as a single-line string.
+  keystore: '{"address":"75a99473917701038e854ef6999c76cd947c9f9e","id":"8cfd0d87-b5ac-45a4-acb9-55f5b2b9bb2e","version":3,"crypto":{"cipher":"aes-128-ctr","ciphertext":"72c8d1f61787f7b1455d7e081edd72d7e1f41f503f363cb7afe08634c10bcd09","cipherparams":{"iv":"8731e724016127b91cf013bc0b4f7f82"},"kdf":"scrypt","mac":"af4de886e6a7e22beefbeaea213e621f00ebca859528c7d474635850800a8de6","kdfparams":{"dklen":32,"n":1024,"p":1,"r":8,"salt":"b1e3901cfe16ed73c538e1adaef5c584ea3b0a405ec1dd1c8776e55c3385c27b"}}}'
+
+  # The password protecting the keystore above.
+  password: correcthorsebatterystaple
 
 service:
   type: ClusterIP

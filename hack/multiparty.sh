@@ -17,15 +17,27 @@ sleep 1
 
 echo "Deploying contract..."
 
-# Use FireFly's API to deploy the multiparty contract
-RESPONSE=$(curl --location "http://127.0.0.1:$FORWARDED_PORT/api/v1/namespaces/default/contracts/deploy?confirm=true" \
---header 'Content-Type: application/json' \
---data '{
-    "definition": '$ABI',
-    "contract": "'$BYTECODE'"
-}')
+# Use FireFly's API to deploy the multiparty contract. Retry while the namespace is still initializing (FF10441)
+# rather than assuming a fixed sleep is enough for FireFly to come up after the port forward.
+for i in $(seq 1 30); do
+    RESPONSE=$(curl --location "http://127.0.0.1:$FORWARDED_PORT/api/v1/namespaces/default/contracts/deploy?confirm=true" \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "definition": '$ABI',
+        "contract": "'$BYTECODE'"
+    }')
+
+    if [[ $(jq -r .error <<< "$RESPONSE") != *"is initializing"* ]]; then
+        break
+    fi
+
+    echo "Namespace still initializing, retrying..."
+    sleep 2
+done
 
 kill $PORTFORWARD_PID
+
+echo "Deploy response: $RESPONSE"
 
 # Parse the resposne from FireFly to get the address and block number in which the contract was deployed
 ADDRESS=$(jq -r .output.contractLocation.address <<<  $RESPONSE)
@@ -34,8 +46,10 @@ BLOCK_NUMBER=$(jq -r .output.protocolId <<< $RESPONSE  | cut -d '/' -f1 | sed 's
 echo ADDRESS: $ADDRESS
 echo BLOCK_NUMBER: $BLOCK_NUMBER
 
-# Append to the list of deployed multiparty contracts
-yq -i '.config.fireflyContracts += {"address": "'$ADDRESS'", "firstEvent": "'$BLOCK_NUMBER'"} | .config.fireflyContracts.[].address style="double"' ./multiparty-values.yaml
+# Replace the list of deployed multiparty contracts with the one just deployed. Each run targets a fresh
+# chain (a new kind cluster / besu genesis), so contracts from a previous run are no longer valid and
+# should not be kept around.
+yq -i '.config.fireflyContracts = [{"address": "'$ADDRESS'", "firstEvent": "'$BLOCK_NUMBER'"}] | .config.fireflyContracts.[].address style="double"' ./multiparty-values.yaml
 
 # Apply the new values to the FireFly config
 helm upgrade --install firefly ../charts/firefly -f ../charts/firefly/local-kind-values.yaml -f ./multiparty-values.yaml --wait

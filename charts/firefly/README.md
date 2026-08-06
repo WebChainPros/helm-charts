@@ -1,6 +1,6 @@
 # FireFly
 
-[Hyperledger FireFly](https://hyperledger.github.io/firefly/) is an implementation of a [multi-party system](https://github.com/hyperledger/firefly#multi-party-systems)
+[Hyperledger FireFly](https://hyperledger-firefly.github.io/firefly/) is an implementation of a [multi-party system](https://hyperledger-firefly.github.io/firefly/latest/overview/multiparty/)
 that simplifies data orchestration on top of blockchain and other peer-to-peer technologies.
 
 This chart bootstraps a FireFly deployment on a [Kubernetes](https://kubernetes.io/) cluster using the [Helm](https://helm.sh/)
@@ -66,7 +66,7 @@ helm registry login ghcr.io
 ## Install Chart
 
 ```shell
-helm install [RELEASE_NAME] --version 0.7.0 oci://ghcr.io/hyperledger/helm/firefly
+helm install [RELEASE_NAME] --version 0.7.0 oci://ghcr.io/hyperledger-firefly/helm/firefly
 ```
 
 _See [configuration](#Configuration) below._
@@ -84,7 +84,7 @@ _See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall/) for command doc
 ## Upgrading Chart
 
 ```shell
-helm upgrade [RELEASE_NAME] --install --version 0.7.0 oci://ghcr.io/hyperledger/helm/firefly
+helm upgrade [RELEASE_NAME] --install --version 0.7.0 oci://ghcr.io/hyperledger-firefly/helm/firefly
 ```
 
 _See [helm upgrade](https://helm.sh/docs/helm/helm_upgrade/) for command documentation._
@@ -97,7 +97,7 @@ You can also use the FireFly chart within your own parent chart's `Chart.yaml`:
 dependencies:
   # ...
   - name: firefly
-    repository: "oci://ghcr.io/hyperledger/helm/"
+    repository: "oci://ghcr.io/hyperledger-firefly/helm/"
     version: 0.7.0
 ```
 
@@ -133,13 +133,13 @@ As depicted above, the chart only aims to provide a means for deploying the foll
 
 | Component                                                                                   | Status           | Optional | Enabled by Default |
 | ------------------------------------------------------------------------------------------- | ---------------- | -------- | ------------------ |
-| [FireFly Core](https://github.com/hyperledger/firefly)                                      | GA               | ❌       | N/A                |
-| [FireFly Ethconnect](https://github.com/hyperledger/firefly-ethconnect)                     | Deprecated       | ✅       | ❌                 |
-| [FireFly EVMConnect](https://github.com/hyperledger/firefly-evmconnect)                     | GA               | ✅       | ✅                 |
-| [FireFly Fabconnect](https://github.com/hyperledger/firefly-fabconnect)                     | Unimplemented 🙈 | N/A      | N/A                |
-| [FireFly DataExchange HTTPS](https://github.com/hyperledger/firefly-dataexchange-https)     | GA               | ✅       | ✅                 |
-| [FireFly Tokens ERC1155](https://github.com/hyperledger/firefly-tokens-erc1155)             | βeta             | ✅       | ❌                 |
-| [FireFly Tokens ERC20 / ERC721](https://github.com/hyperledger/firefly-tokens-erc20-erc721) | GA               | ✅       | ❌                 |
+| [FireFly Core](https://github.com/hyperledger-firefly/firefly)                              | GA               | ❌       | N/A                |
+| [FireFly Ethconnect](https://github.com/hyperledger-firefly/ethconnect)                     | Deprecated       | ✅       | ❌                 |
+| [FireFly EVMConnect](https://github.com/hyperledger-firefly/evmconnect)                     | GA               | ✅       | ✅                 |
+| [FireFly Fabconnect](https://github.com/hyperledger-firefly/fabconnect)                     | Unimplemented 🙈 | N/A      | N/A                |
+| [FireFly DataExchange HTTPS](https://github.com/hyperledger-firefly/dataexchange-https)     | GA               | ✅       | ✅                 |
+| [FireFly Tokens ERC1155](https://github.com/hyperledger-firefly/tokens-erc1155)             | βeta             | ✅       | ❌                 |
+| [FireFly Tokens ERC20 / ERC721](https://github.com/hyperledger-firefly/tokens-erc20-erc721) | GA               | ✅       | ❌                 |
 
 > **NOTE**: "Status" is meant to indicate the level of stability of the _chart's_ support for the particular component.
 > It is _not_ meant to indicate the maturity of the component itself, though the component's maturity does have an impact
@@ -190,7 +190,7 @@ config:
     # etc. ...
 ```
 
-See [`config.go`](https://github.com/hyperledger/firefly/blob/main/internal/config/config.go) for all available FireFly configuration options.
+See [`config.go`](https://github.com/hyperledger-firefly/firefly/blob/main/internal/config/config.go) for all available FireFly configuration options.
 
 ### Additional Environment Variables
 
@@ -250,7 +250,7 @@ core:
 
 Configuring FireFly to use an [Ethereum](https://ethereum.org/en/) blockchain such as [Geth](https://geth.ethereum.org/),
 [Quorum](https://github.com/ConsenSys/quorum), or [Hyperledger Besu](https://www.hyperledger.org/use/besu) requires first
-having an instance of [FireFly Ethconnect](https://github.com/hyperledger/firefly-ethconnect) deployed and connected to
+having an instance of [FireFly Ethconnect](https://github.com/hyperledger-firefly/ethconnect) deployed and connected to
 the JSONRPC port of an Ethereum node in the underlying network. You can either configure the chart to use a "remote",
 pre-provisioned Ethconnect instance, or the chart can create a "local" Ethconnect instance for you alongside your FireFly.
 
@@ -308,7 +308,7 @@ without first registering them. By default, the chart will run a job which will 
 FireFly and [ERC1155](#erc1155) contracts provided via the `config.fireflyContractAdderess` and `erc1155.contractAddress`
 values.
 
-> **NOTE**: With the ongoing work on [Custom On-Chain Logic](https://github.com/hyperledger/firefly-fir/pull/2) within FireFly,
+> **NOTE**: With the ongoing work on [Custom On-Chain Logic](https://github.com/hyperledger-firefly/fir/pull/2) within FireFly,
 > the support around contract registration and deployment is subject to change in the near future.
 
 If you are unable to pre-deploy the contracts, you can disable registration and boot up FireFly in a "pre-init"
@@ -349,7 +349,7 @@ core:
 
 #### Smart Contract Deployment
 
-Currently, the chart offers no way for one to manage the [FireFly smart contract](https://github.com/hyperledger/firefly/blob/main/smart_contracts/ethereum/solidity_firefly/contracts/Firefly.sol).
+Currently, the chart offers no way for one to manage the [FireFly smart contract](https://github.com/hyperledger-firefly/firefly/blob/main/smart_contracts/ethereum/solidity_firefly/contracts/Firefly.sol).
 Instead, the chart assumes it is already pre-provisioned via Ethconnect by one of the organizations.
 
 If you have the contract available as gateway contract on Ethconnect, you can then deploy it via the API:
@@ -369,12 +369,12 @@ The JSON returned by the API will have the Ethereum address of the smart contrac
 > transactions to work properly.
 
 If the contract is not available as a gateway contract on your Ethconnect instance, see the
-Ethconnect docs for [deploying a contract](https://github.com/hyperledger/firefly-ethconnect#yaml-to-deploy-a-contract).
+Ethconnect docs for [deploying a contract](https://github.com/hyperledger-firefly/ethconnect#yaml-to-deploy-a-contract).
 
 ### Fabric
 
 Configuring FireFly to use a [Hyperledger Fabric](https://www.hyperledger.org/use/fabric) blockchain requires first
-having an instance of [FireFly Fabconnect](https://github.com/hyperledger/firefly-fabconnect) deployed and connected to
+having an instance of [FireFly Fabconnect](https://github.com/hyperledger-firefly/fabconnect) deployed and connected to
 the gRPC port of a Fabric peer in the underlying network.
 
 As was noted in [Deployment Architecture](#deployment-architecture), the chart will eventually include support for deploying
@@ -393,7 +393,7 @@ its chaincode on behalf of the organization it's representing.
 
 #### Chaincode
 
-By default, the chart assumes the [FireFly chaincode](https://github.com/hyperledger/firefly/blob/main/smart_contracts/fabric/firefly-go) is deployed to the
+By default, the chart assumes the [FireFly chaincode](https://github.com/hyperledger-firefly/firefly/blob/main/smart_contracts/fabric/firefly-go) is deployed to the
 `default-channel` with the name `firefly_go`. If the chaincode was deployed to a different channel or with a different
 name you can set `config.fabconnectChannel` and `config.fireflyChaincode` accordingly.
 
@@ -539,10 +539,10 @@ ingress:
 
 #### ERC1155
 
-By default, the chart comes with the [FireFly Tokens ERC1155 connector](https://github.com/hyperledger/firefly-tokens-erc1155)
+By default, the chart comes with the [FireFly Tokens ERC1155 connector](https://github.com/hyperledger-firefly/tokens-erc1155)
 disabled.
 
-The ERC1155 connector requires its [ERC1155 smart contract](https://github.com/hyperledger/firefly-tokens-erc1155/blob/main/solidity/contracts/ERC1155MixedFungible.sol)
+The ERC1155 connector requires its [ERC1155 smart contract](https://github.com/hyperledger-firefly/tokens-erc1155/blob/main/solidity/contracts/ERC1155MixedFungible.sol)
 to be deployed via Ethconnect. To do so, you can follow the same process for deploying the [FireFly smart contract](#smart-contract-deployment).
 Once the smart contract is deployed, you can enable the ERC1155 connect and provide the contract address to the chart:
 
@@ -554,7 +554,7 @@ erc1155:
 
 #### ERC20 / ERC721
 
-By default, the chart comes with the [FireFly Tokens ERC20 / ERC721 connector](https://github.com/hyperledger/firefly-tokens-erc20)
+By default, the chart comes with the [FireFly Tokens ERC20 / ERC721 connector](https://github.com/hyperledger-firefly/tokens-erc20)
 disabled. [ERC20](https://eips.ethereum.org/EIPS/eip-20) is the token standard used for fungible tokens as part of this connector,
 whereas [ERC721](https://eips.ethereum.org/EIPS/eip-721) is used for the [non-fungible tokens](https://en.wikipedia.org/wiki/Non-fungible_token) (NFTs).
 
@@ -582,7 +582,7 @@ erc20Erc721:
 see the [values.yaml](values.yaml) for more information around configuration options depending on if you are using an
 Ethconnect instance in local or remote registry mode.
 
-> **NOTE**: With the ongoing work on [Custom On-Chain Logic](https://github.com/hyperledger/firefly-fir/pull/2) within FireFly,
+> **NOTE**: With the ongoing work on [Custom On-Chain Logic](https://github.com/hyperledger-firefly/fir/pull/2) within FireFly,
 > the support around contract deployment is subject to change in the near future.
 
 ### Prometheus Support
@@ -633,7 +633,7 @@ metadata:
   name: firefly-helm
 spec:
   interval: 10m
-  url: "https://github.com/hyperledger/firefly-helm-charts"
+  url: "https://github.com/hyperledger-firefly/helm-charts"
   ref:
     tag: v0.7.0
   ignore: |
@@ -668,7 +668,7 @@ Helm registries. In order to use the FireFly Helm chart via an ArgoCD [`Applicat
 you must first add the OCI Helm registry for Hyperledger. For example, you can do so using the [CLI](https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_repo_add/):
 
 ```shell
-argocd repo add ghcr.io/hyperledger/helm --type helm --name hyperledger --enable-oci --username ${USERNAME} --password ${PAT}
+argocd repo add ghcr.io/hyperledger-firefly/helm --type helm --name hyperledger --enable-oci --username ${USERNAME} --password ${PAT}
 ```
 
 To declaratively add the registry consult the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#repositories).
@@ -686,7 +686,7 @@ As a result, you can configure Terraform to use the FireFly chart by either:
 
 2. Pre-downloading the FireFly chart directly using:
    ```shell
-   helm pull --version 0.0.1 oci://ghcr.io/hyperledger/helm/firefly
+   helm pull --version 0.0.1 oci://ghcr.io/hyperledger-firefly/helm/firefly
    ```
    then referring to via its filepath location:
    ```hcl

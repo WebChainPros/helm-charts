@@ -35,11 +35,11 @@ persistentVolume:
   storageClass: ""
 
 image:
-  repository: ghcr.io/hyperledger/firefly-evmconnect
+  repository: ghcr.io/hyperledger-firefly/evmconnect
   pullPolicy: IfNotPresent
-  tag: "v1.4.0"
+  tag: "v1.5.1"
 
-# see https://github.com/hyperledger/firefly-evmconnect/blob/main/config.md for more info
+# see https://github.com/hyperledger-firefly/evmconnect/blob/main/config.md for more info
 config:
   jsonRpcUrl: ""
 

@@ -8,8 +8,8 @@ type: application
 #  - Significant changes to the structure or purpose of the chart (major version update)
 #  - FireFly Signer major release (minor version update)
 #  - Smaller release and updates (patch version updates)
-version: 0.8.0
-appVersion: "1.1.17"
+version: 0.9.0
+appVersion: "1.2.1"
 
 maintainers:
   - name: EnriqueL8

@@ -5,7 +5,7 @@
 repository:
   name: firefly-helm-charts
   description: Firefly Helm Charts
-  homepage: https://github.com/hyperledger/firefly-helm-charts
+  homepage: https://github.com/hyperledger-firefly/helm-charts
   default_branch: main
   has_downloads: true
   has_issues: true

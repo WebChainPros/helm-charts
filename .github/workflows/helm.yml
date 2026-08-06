@@ -28,7 +28,7 @@ jobs:
       - name: setup helm
         uses: azure/setup-helm@v1
         with:
-          version: 3.7.2
+          version: 3.18.4
 
       - name: setup chart-testing tool
         uses: helm/chart-testing-action@v2.2.0
@@ -86,17 +86,17 @@ jobs:
       - name: setup helm
         uses: azure/setup-helm@v1
         with:
-          version: 3.7.2
+          version: 3.18.4
 
       - name: helm publish
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | helm registry login ghcr.io -u $GITHUB_ACTOR --password-stdin
 
           helm package --version ${{ env.PUBLISH_VERSION }} ./charts/firefly-evmconnect
-          helm push firefly-evmconnect-${{ env.PUBLISH_VERSION }}.tgz oci://ghcr.io/hyperledger/helm
+          helm push firefly-evmconnect-${{ env.PUBLISH_VERSION }}.tgz oci://ghcr.io/hyperledger-firefly/helm
 
           helm dep up ./charts/firefly
           helm package --version ${{ env.PUBLISH_VERSION }} ./charts/firefly
-          helm push firefly-${{ env.PUBLISH_VERSION }}.tgz oci://ghcr.io/hyperledger/helm
+          helm push firefly-${{ env.PUBLISH_VERSION }}.tgz oci://ghcr.io/hyperledger-firefly/helm
         env:
           HELM_EXPERIMENTAL_OCI: "1"
