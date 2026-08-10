@@ -57,22 +57,48 @@ kubectl create secret generic web3signer-passwords \
 
 ## 🚀 3. 전체 배포 및 실행 프로세스
 
-### 3.1 자동으로 배포하기 (`deploy.sh`)
+### 3.1 기본 빠른 배포 (Meta-net 코어 풀스택 - 권장 🚀)
 
-`deploy.sh` 스크립트를 실행하면 헬름 패키지 종속성을 갱신하고 멀티체인 풀스택 전체가 자동으로 쿠버네티스 클러스터에 배포됩니다.
+메인넷(`meta`) 코어 엔진, DB, UI 프록시 및 모니터링 스택을 ** 가장 가볍고 빠르게(10~15초 내) 기동하는 권장 배포 방법**입니다:
 
 ```bash
 cd /home/joon/firefly/helm-charts
 ./deploy.sh
-```
-
-### 3.2 멀티체인 파드 서비스, UI 프록시 및 모니터링 적용 (Amoy / Sepolia / UI Proxy / Prometheus / Grafana)
-
-```bash
-kubectl apply -f manifests/multichain.yaml
 kubectl apply -f manifests/ui-proxy.yaml
 kubectl apply -f manifests/monitoring.yaml
 ```
+
+### 3.2 온디맨드 멀티체인 확장 (Polygon Amoy & Sepolia 선택적 실행 ⚡)
+
+외부 멀티체인 연동 및 테스트가 필요할 때만 수동으로 확장 파드들을 활성화/비활성화합니다:
+
+```bash
+# 1. 멀티체인 확장 켜기 (Polygon Amoy & Ethereum Sepolia 파드 6개 활성화)
+kubectl apply -f manifests/multichain.yaml
+
+# 2. 멀티체인 확장 끄기 (다시 가벼운 Meta-net 단일 체인으로 복귀)
+kubectl delete -f manifests/multichain.yaml
+```
+
+### 3.3 🔄 PC / 도커 데스크탑 재부팅 후 일상적인 재기동 순서 (Daily Resume Guide)
+
+PC 및 도커 데스크탑을 재부팅한 경우, 쿠버네티스 컨트롤러가 기존 파드들을 자동 복구하려고 시도합니다. 다만 안전한 재기동과 외부 접속(UI/API)을 위해 아래 순서를 따릅니다:
+
+```bash
+# STEP 1. 네임스페이스 내 모든 파드 일괄 순차 재시작 (깔끔한 재기동)
+kubectl rollout restart deployment,statefulset -n firefly
+
+# STEP 2. 모든 파드가 Running (READY 1/1 또는 2/2) 상태인지 확인
+kubectl get pods -n firefly -w
+
+# STEP 3. 백그라운드 포트 포워딩 재실행 (PC 재부팅 시 필수!)
+kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
+```
+
+> ⚠️ **주의**: PC를 껐다 켜면 기존 터미널의 포트 포워딩 프로세스가 종료되므로, 파드 재시작 후 **STEP 3(포트 포워딩)**을 반드시 다시 실행해 주어야 웹 브라우저 접속이 가능합니다.
 
 ---
 
@@ -133,17 +159,22 @@ kubectl create secret generic web3signer-keystores \
 kubectl create secret generic web3signer-passwords \
   --from-file=/home/joon/.firefly/web3signer-bulk/passwords -n firefly
 
-# STEP 4. 메인 헬름 풀스택 배포
+# STEP 4. 기본 메인 패키지 배포 (Meta-net 코어 + UI 프록시 + 모니터링)
 ./deploy.sh
-
-# STEP 5. 추가 멀티체인, UI 프록시 & 모니터링 매니페스트 적용
-kubectl apply -f manifests/multichain.yaml
 kubectl apply -f manifests/ui-proxy.yaml
 kubectl apply -f manifests/monitoring.yaml
 
-# STEP 6. UI 접속을 위한 백그라운드 포트 포워딩 실행
+# STEP 5. (선택 사항) 멀티체인 연동 필요 시 Amoy & Sepolia 파드 확장 실행
+# kubectl apply -f manifests/multichain.yaml
+
+# STEP 6. 파드 생성 상태 실시간 모니터링 (모든 파드가 Running이 되면 Ctrl+C로 탈출)
+kubectl get pods -n firefly -w
+
+# STEP 7. UI 및 모니터링 접속을 위한 백그라운드 포트 포워딩 실행
 kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
 kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
 ```
 
 ---
@@ -191,6 +222,16 @@ kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0
 ```bash
 kubectl logs firefly-evmconnect-web3signer-7f86cd856-gjbh8 -n firefly -p
 ```
+
+### 5.3 ⚠️ 자주 발생하는 트러블슈팅 (포트 포워딩 및 미배포 에러)
+
+1. **`Error from server (NotFound): services "..." not found`**
+   - **원인**: FireFly 메인 헬름 차트 또는 확장 매니페스트(`monitoring.yaml` 등)가 클러스터에 배포되지 않아 서비스가 존재하지 않는 상태입니다.
+   - **해결**: [4.3 완전 삭제 후 처음부터 완벽 재배포 Process](#43-완전-삭제-후-처음부터-완벽-재배포-clean-redeploy-process)를 수행하여 `./deploy.sh` 및 `kubectl apply`를 재배포하세요.
+
+2. **`error: unable to forward port because pod is not running. Current status=Pending` (또는 `ContainerCreating`)**
+   - **원인**: 대상 파드가 아직 생성 중이거나 준비 단계(`ContainerCreating` / `Pending`)라서 포트 포워딩 연결을 맺을 수 없습니다.
+   - **해결**: `kubectl get pods -n firefly -w` 명령어로 모든 파드가 **`Running` (READY 1/1 또는 2/2)** 상태가 되는 것을 확인한 후 포트 포워딩을 재실행하세요.
 
 ---
 
