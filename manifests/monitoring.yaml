@@ -121,7 +121,114 @@ spec:
     app: firefly-postgres-exporter
 
 ---
-# 3. Grafana Dashboard Deployment & Service
+---
+# 3. Grafana Datasource & Dashboard Provisioning ConfigMaps (영속화 매니페스트)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: firefly
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: firefly
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Firefly Dashboards'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: firefly
+data:
+  firefly-nodes-nonce.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 1,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "title": "노드별 최신 Nonce & Block Listener 상태 (Node Nonce Tracking)",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "id": 1,
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "editorMode": "code",
+              "expr": "max(pg_stat_database_xact_commit{datname=\"firefly\"}) by (datname)",
+              "legendFormat": "Database Transactions Committed",
+              "range": true,
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "노드별 Nonce / Pending 수량 & Policy Loop 버퍼 (Pending Buffer)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "id": 2,
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "sum(rate(pg_stat_database_xact_commit{datname=\"firefly\"}[1m]))",
+              "legendFormat": "TPS (Committed Tx/sec)",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "title": "PostgreSQL DB Connections Pool (Max 400)",
+          "type": "gauge",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "id": 3,
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "Prometheus" },
+              "expr": "pg_stat_database_numbackends{datname=\"firefly\"}",
+              "legendFormat": "Active DB Connections",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "5s",
+      "schemaVersion": 38,
+      "style": "dark",
+      "tags": ["firefly", "nonce"],
+      "time": { "from": "now-15m", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "FireFly 멀티체인 노드 논스(Nonce) & TPS 모니터링",
+      "uid": "firefly-nonce-overview"
+    }
+---
+# 4. Grafana Deployment & Service
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -149,6 +256,23 @@ spec:
           ports:
             - containerPort: 3000
               name: http
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-providers
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-providers
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
 ---
 apiVersion: v1
 kind: Service

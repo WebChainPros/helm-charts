@@ -11,14 +11,17 @@ data:
       default_type application/octet-stream;
       server {
         listen 5000;
+        
+        # UI 프론트엔드 정적파일 서빙 (/ui 및 /ui/)
         location /ui/ {
-          proxy_pass http://firefly-sandbox:3001/;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
+          alias /usr/share/nginx/html/;
+          try_files $uri $uri/ /ui/index.html;
         }
         location /ui {
           return 301 /ui/;
         }
+        
+        # FireFly Core REST API & WebSocket 라우팅
         location / {
           proxy_pass http://firefly:5000;
           proxy_set_header Host $host;
@@ -47,7 +50,8 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx:alpine
+          image: firefly-custom-ui:v4
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           volumeMounts:

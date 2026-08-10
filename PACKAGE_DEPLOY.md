@@ -68,16 +68,38 @@ kubectl apply -f manifests/ui-proxy.yaml
 kubectl apply -f manifests/monitoring.yaml
 ```
 
-### 3.2 온디맨드 멀티체인 확장 (Polygon Amoy & Sepolia 선택적 실행 ⚡)
+### 3.1 멀티체인 풀스택 배포 (Meta-net + Amoy + Sepolia - 권장 🚀)
 
-외부 멀티체인 연동 및 테스트가 필요할 때만 수동으로 확장 파드들을 활성화/비활성화합니다:
+FireFly 코어 엔진 설정(`firefly-config`)에는 `meta`, `amoy`, `sepolia` 3개 네임스페이스가 등록되어 있으므로, 코어 파드의 헬스체크 타임아웃 에러를 방지하고 멀티체인 전체를 연결하려면 아래 명령어로 풀스택을 배포합니다:
 
 ```bash
-# 1. 멀티체인 확장 켜기 (Polygon Amoy & Ethereum Sepolia 파드 6개 활성화)
+cd /home/joon/firefly/helm-charts
+./deploy.sh
 kubectl apply -f manifests/multichain.yaml
+kubectl apply -f manifests/ui-proxy.yaml
+kubectl apply -f manifests/monitoring.yaml
+```
 
-# 2. 멀티체인 확장 끄기 (다시 가벼운 Meta-net 단일 체인으로 복귀)
-kubectl delete -f manifests/multichain.yaml
+> 💡 **참고 (로그 에러 원인)**: `multichain.yaml` 파드를 삭제하면 `firefly-0` 엔진 설정에 남아있는 `amoy`/`sepolia` 네임스페이스가 5008 포트로 주기적인 연결 시도를 하므로 `context deadline exceeded` 로그 에러가 발생하게 됩니다. 따라서 `multichain.yaml` 매니페스트를 함께 적용해 두는 것이 가장 안정적인 상태입니다.
+
+### 3.2 🎨 커스텀 Explorer UI 빌드 & K8s 매핑 (노드별 논스/블록 추적 대시보드 영속화)
+
+`ui/src/pages/Home/views/BlockchainSync.tsx`에 개발된 커스텀 UI(노드별 논스/블록 동기화 추적 컴포넌트)를 K8s 재배포 후에도 사라지지 않고 첫 화면에 항상 100% 뜨게 만드는 매핑 명령어입니다:
+
+```bash
+# 1. 로컬 커스텀 UI 빌드본을 도커 이미지(firefly-custom-ui:latest)로 생성
+cd /home/joon/firefly/ui
+docker build -t firefly-custom-ui:latest -f - . <<'EOF'
+FROM nginx:alpine
+RUN rm -rf /usr/share/nginx/html/*
+COPY build /usr/share/nginx/html
+COPY build /usr/share/nginx/html/ui
+EOF
+
+# 2. UI 프록시 매니페스트 적용 및 파드 재시작
+cd /home/joon/firefly/helm-charts
+kubectl apply -f manifests/ui-proxy.yaml
+kubectl rollout restart deploy/firefly-ui-proxy -n firefly
 ```
 
 ### 3.3 🔄 PC / 도커 데스크탑 재부팅 후 일상적인 재기동 순서 (Daily Resume Guide)
@@ -159,13 +181,21 @@ kubectl create secret generic web3signer-keystores \
 kubectl create secret generic web3signer-passwords \
   --from-file=/home/joon/.firefly/web3signer-bulk/passwords -n firefly
 
-# STEP 4. 기본 메인 패키지 배포 (Meta-net 코어 + UI 프록시 + 모니터링)
+# STEP 4. 커스텀 UI 도커 이미지 빌드 (BlockchainSync 노드별 논스/블록 추적 대시보드 영속화)
+cd /home/joon/firefly/ui
+docker build -t firefly-custom-ui:latest -f - . <<'EOF'
+FROM nginx:alpine
+RUN rm -rf /usr/share/nginx/html/*
+COPY build /usr/share/nginx/html
+COPY build /usr/share/nginx/html/ui
+EOF
+
+# STEP 5. 풀스택 배포 & 확장 매니페스트 적용
+cd /home/joon/firefly/helm-charts
 ./deploy.sh
+kubectl apply -f manifests/multichain.yaml
 kubectl apply -f manifests/ui-proxy.yaml
 kubectl apply -f manifests/monitoring.yaml
-
-# STEP 5. (선택 사항) 멀티체인 연동 필요 시 Amoy & Sepolia 파드 확장 실행
-# kubectl apply -f manifests/multichain.yaml
 
 # STEP 6. 파드 생성 상태 실시간 모니터링 (모든 파드가 Running이 되면 Ctrl+C로 탈출)
 kubectl get pods -n firefly -w
@@ -276,3 +306,8 @@ kubectl get secret firefly-config -n firefly -o jsonpath='{.data.firefly\.core}'
 # EVMConnect 설정 원본 디코딩
 kubectl get secret firefly-evmconnect-config -n firefly -o jsonpath='{.data.config\.yaml}' | base64 --decode
 ```
+
+---
+
+## 📌 관련 참고 문서
+- [운영모니터링.md](file://wsl.localhost/Ubuntu/home/joon/firefly/helm-charts/%EC%9A%B4%EC%98%81%EB%AA%A8%EB%8B%88%ED%84%B0%EB%A7%81.md): 펜딩 트랜잭션 추적, 논스 동기화, Policy Loop 및 DB/API 병목 분석을 위한 운영 모니터링 명령어 가이드
