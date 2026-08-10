@@ -77,6 +77,13 @@ spec:
                 - {{ .Values.postgresql.user | quote }}
             initialDelaySeconds: 5
             periodSeconds: 5
+          volumeMounts:
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
           resources:
             {{- toYaml .Values.postgresql.resources | nindent 12 }}
+      volumes:
+        - name: init-script
+          configMap:
+            name: {{ include "firefly.fullname" . }}-postgres-init
 {{- end }}

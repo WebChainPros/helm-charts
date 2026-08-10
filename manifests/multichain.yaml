@@ -1,0 +1,453 @@
+# Amoy & Sepolia Multichain Complete ConfigMaps, Deployments, and Services
+# 100% matched with /home/joon/.firefly/stacks/dev_15/
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evmconnect-amoy-config
+  namespace: firefly
+data:
+  config.yaml: |
+    log:
+      level: debug
+    connector:
+      url: https://polygon-amoy-bor-rpc.publicnode.com
+      events:
+        filterPollingInterval: 30s
+        catchupPageSize: 250
+        catchupThreshold: 250
+        checkpointBlockGap: 9
+      throttle:
+        requestsPerSecond: 15
+        burst: 30
+      txSigner:
+        enabled: true
+        type: web3signer
+        web3signer:
+          url: http://web3signer-amoy:9000
+    persistence:
+      type: postgres
+      postgres:
+        url: postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable&search_path=evm_amoy
+        migrations:
+          auto: true
+        options:
+          "-c search_path=evm_amoy"
+    ffcore:
+      url: http://firefly:5000
+      namespaces:
+        - amoy
+    confirmations:
+      required: 0
+    transactions:
+      handler:
+        name: simple
+        simple:
+          fixedGasPrice: '{"maxFeePerGas": "123456789012", "maxPriorityFeePerGas": "2000000000"}'
+          gasOracle:
+            mode: fixed
+          resubmitInterval: 10s
+    api:
+      port: 5008
+      address: 0.0.0.0
+      publicURL: http://127.0.0.1:5112
+    eventstreams:
+      defaults:
+        batchSize: 20
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evmconnect-sepolia-config
+  namespace: firefly
+data:
+  config.yaml: |
+    log:
+      level: debug
+    connector:
+      url: https://ethereum-sepolia.nodit.io/VOYo9mfc4s-AlOOgenk1WqbTEHvhKeYG
+      events:
+        filterPollingInterval: 30s
+        catchupPageSize: 250
+        catchupThreshold: 250
+        checkpointBlockGap: 9
+      throttle:
+        requestsPerSecond: 15
+        burst: 30
+      txSigner:
+        enabled: true
+        type: web3signer
+        web3signer:
+          url: http://web3signer-sepolia:9000
+    persistence:
+      type: postgres
+      postgres:
+        url: postgres://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable&search_path=evm_sepolia
+        migrations:
+          auto: true
+        options:
+          "-c search_path=evm_sepolia"
+    ffcore:
+      url: http://firefly:5000
+      namespaces:
+        - sepolia
+    confirmations:
+      required: 0
+    transactions:
+      handler:
+        name: simple
+        simple:
+          fixedGasPrice: '{"maxFeePerGas": "123456789012", "maxPriorityFeePerGas": "2000000000"}'
+          gasOracle:
+            mode: fixed
+          resubmitInterval: 10s
+    api:
+      port: 5008
+      address: 0.0.0.0
+      publicURL: http://127.0.0.1:5122
+    eventstreams:
+      defaults:
+        errorHandling: skip
+        batchSize: 10
+        batchTimeout: 5s
+      checkpointInterval: 1s
+
+---
+# 1. Web3Signer for Polygon Amoy (Chain ID 80002)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web3signer-amoy
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web3signer-amoy
+  template:
+    metadata:
+      labels:
+        app: web3signer-amoy
+    spec:
+      containers:
+        - name: web3signer
+          image: consensys/web3signer:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--http-listen-port=9000"
+            - "--http-host-allowlist=*"
+            - "eth1"
+            - "--chain-id=80002"
+            - "--keystores-path=/opt/web3signer/keystores"
+            - "--keystores-passwords-path=/opt/web3signer/passwords"
+            - "--downstream-http-host=host.docker.internal"
+            - "--downstream-http-port=8545"
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+            - name: WEB3SIGNER_OPTS
+              value: "-Dvertx.workerPoolSize=200 -Dvertx.eventLoopPoolSize=64 -Xmx3500m -Xms1500m"
+          ports:
+            - containerPort: 9000
+              name: http
+          volumeMounts:
+            - name: keystores
+              mountPath: /opt/web3signer/keystores
+              readOnly: true
+            - name: passwords
+              mountPath: /opt/web3signer/passwords
+              readOnly: true
+      volumes:
+        - name: keystores
+          secret:
+            secretName: web3signer-keystores
+        - name: passwords
+          secret:
+            secretName: web3signer-passwords
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web3signer-amoy
+  namespace: firefly
+spec:
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: http
+  selector:
+    app: web3signer-amoy
+
+---
+# 2. Web3Signer for Ethereum Sepolia (Chain ID 11155111)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web3signer-sepolia
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web3signer-sepolia
+  template:
+    metadata:
+      labels:
+        app: web3signer-sepolia
+    spec:
+      containers:
+        - name: web3signer
+          image: consensys/web3signer:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--http-listen-port=9000"
+            - "--http-host-allowlist=*"
+            - "eth1"
+            - "--chain-id=11155111"
+            - "--keystores-path=/opt/web3signer/keystores"
+            - "--keystores-passwords-path=/opt/web3signer/passwords"
+            - "--downstream-http-host=host.docker.internal"
+            - "--downstream-http-port=8545"
+          env:
+            - name: TZ
+              value: "Asia/Seoul"
+            - name: WEB3SIGNER_OPTS
+              value: "-Dvertx.workerPoolSize=200 -Dvertx.eventLoopPoolSize=64 -Xmx3500m -Xms1500m"
+          ports:
+            - containerPort: 9000
+              name: http
+          volumeMounts:
+            - name: keystores
+              mountPath: /opt/web3signer/keystores
+              readOnly: true
+            - name: passwords
+              mountPath: /opt/web3signer/passwords
+              readOnly: true
+      volumes:
+        - name: keystores
+          secret:
+            secretName: web3signer-keystores
+        - name: passwords
+          secret:
+            secretName: web3signer-passwords
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web3signer-sepolia
+  namespace: firefly
+spec:
+  ports:
+    - port: 9000
+      targetPort: 9000
+      name: http
+  selector:
+    app: web3signer-sepolia
+
+---
+# 3. EVMConnect for Polygon Amoy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evmconnect-amoy
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evmconnect-amoy
+  template:
+    metadata:
+      labels:
+        app: evmconnect-amoy
+    spec:
+      containers:
+        - name: evmconnect
+          image: ghcr.io/webchainpro-cpu/evmconnect:head
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-f"
+            - "/evmconnect/config.yaml"
+          env:
+            - name: ETHCONNECT_CHAIN_ID
+              value: "80002"
+            - name: ETHCONNECT_FIRST_EVENT_BLOCK
+              value: "-20"
+            - name: EVMCONNECT_CONNECTOR_USEGETBLOCKRECEIPTS
+              value: "true"
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - containerPort: 5008
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /evmconnect/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: evmconnect-amoy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evmconnect-amoy
+  namespace: firefly
+spec:
+  ports:
+    - port: 5008
+      targetPort: 5008
+      name: http
+  selector:
+    app: evmconnect-amoy
+
+---
+# 4. EVMConnect for Ethereum Sepolia
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: evmconnect-sepolia
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: evmconnect-sepolia
+  template:
+    metadata:
+      labels:
+        app: evmconnect-sepolia
+    spec:
+      containers:
+        - name: evmconnect
+          image: ghcr.io/webchainpro-cpu/evmconnect:head
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-f"
+            - "/evmconnect/config.yaml"
+          env:
+            - name: ETHCONNECT_CHAIN_ID
+              value: "11155111"
+            - name: ETHCONNECT_FIRST_EVENT_BLOCK
+              value: "-20"
+            - name: EVMCONNECT_CONNECTOR_USEGETBLOCKRECEIPTS
+              value: "true"
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - containerPort: 5008
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /evmconnect/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config
+          configMap:
+            name: evmconnect-sepolia-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: evmconnect-sepolia
+  namespace: firefly
+spec:
+  ports:
+    - port: 5008
+      targetPort: 5008
+      name: http
+  selector:
+    app: evmconnect-sepolia
+
+---
+# 5. Tokens for Polygon Amoy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokens-amoy
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tokens-amoy
+  template:
+    metadata:
+      labels:
+        app: tokens-amoy
+    spec:
+      containers:
+        - name: tokens
+          image: ghcr.io/hyperledger/firefly-tokens-erc20-erc721:v1.3.7
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ETHCONNECT_URL
+              value: "http://evmconnect-amoy:5008"
+            - name: ETHCONNECT_TOPIC
+              value: "tokens_amoy"
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - containerPort: 3000
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tokens-amoy
+  namespace: firefly
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  selector:
+    app: tokens-amoy
+
+---
+# 6. Tokens for Ethereum Sepolia
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokens-sepolia
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tokens-sepolia
+  template:
+    metadata:
+      labels:
+        app: tokens-sepolia
+    spec:
+      containers:
+        - name: tokens
+          image: ghcr.io/hyperledger/firefly-tokens-erc20-erc721:v1.3.7
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ETHCONNECT_URL
+              value: "http://evmconnect-sepolia:5008"
+            - name: ETHCONNECT_TOPIC
+              value: "tokens_sepolia"
+            - name: TZ
+              value: "Asia/Seoul"
+          ports:
+            - containerPort: 3000
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tokens-sepolia
+  namespace: firefly
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  selector:
+    app: tokens-sepolia

@@ -136,6 +136,8 @@ evmconnect:
   config:
     log:
       level: debug
+    monitoring:
+      enabled: true
     connector:
       maxConcurrentRequests: 1000
       url: "http://host.docker.internal:8545"

@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: firefly-ui-proxy-config
+  namespace: firefly
+data:
+  nginx.conf: |
+    events { worker_connections 1024; }
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      server {
+        listen 5000;
+        location /ui/ {
+          proxy_pass http://firefly-sandbox:3001/;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+        }
+        location /ui {
+          return 301 /ui/;
+        }
+        location / {
+          proxy_pass http://firefly:5000;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "upgrade";
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefly-ui-proxy
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firefly-ui-proxy
+  template:
+    metadata:
+      labels:
+        app: firefly-ui-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: config
+          configMap:
+            name: firefly-ui-proxy-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firefly-ui-proxy
+  namespace: firefly
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+  selector:
+    app: firefly-ui-proxy

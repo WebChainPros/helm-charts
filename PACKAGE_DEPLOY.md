@@ -23,6 +23,18 @@
 - **통합 Nginx 프록시 (`firefly-ui-proxy`)**: 5000번 포트로 대시보드 UI (`/ui`)와 REST API (`/api`) 통합 라우팅
 - **모니터링 풀스택 (Prometheus + Grafana + Postgres Exporter)**: 포트 9090 (Prometheus), 포트 3300 (Grafana UI), 포트 9187 (Postgres Exporter)
 
+### 1.1 매니페스트 분리 배포 구조 및 구성 이유
+
+본 패키지는 메인 헬름 차트(`charts/firefly`)와 확장 매니페스트(`manifests/`)로 이원화되어 배포됩니다:
+
+* **메인 헬름 차트 (`./deploy.sh`)**: FireFly Core 엔진, Meta-net EVMConnect/Web3Signer 및 PostgreSQL DB 관리
+* **확장 매니페스트 (`manifests/`)**: 멀티체인 확장 파드(`multichain.yaml`), UI 프록시(`ui-proxy.yaml`), 모니터링 스택(`monitoring.yaml`) 관리
+
+**💡 매니페스트를 분리 구성한 이유**:
+1. **기본 헬름 차트의 구조적 한계 극복**: 공식 FireFly 헬름 차트는 단일 체인 전용이므로, 기존 메인 차트를 건드리지 않고 Polygon Amoy 및 Ethereum Sepolia용 파드 6개를 애드온(Add-on) 형태로 유연하게 연동하기 위함입니다.
+2. **통합 Nginx UI 프록시 (`firefly-ui-proxy`)의 독립성**: 5000번 단일 포트로 대시보드 UI(`/ui`)와 REST API(`/api`)를 동시 라우팅하는 게이트웨이 파드로, 코어 엔진과 독립적으로 동작하도록 구성되었습니다.
+3. **모듈화 및 운용 유연성**: 모니터링 인프라 및 체인별 컴포넌트를 필요에 따라 독립적으로 개별 컨트롤(추가/삭제/업데이트)이 가능합니다.
+
 ---
 
 ## 🔑 2. 사전 준비 사항 (키스토어 Secret 생성)
@@ -51,17 +63,15 @@ kubectl create secret generic web3signer-passwords \
 
 ```bash
 cd /home/joon/firefly/helm-charts
-bash deploy.sh
+./deploy.sh
 ```
 
-### 3.2 멀티체인 파드 서비스 및 모니터링 적용 (Amoy / Sepolia / Prometheus / Grafana)
+### 3.2 멀티체인 파드 서비스, UI 프록시 및 모니터링 적용 (Amoy / Sepolia / UI Proxy / Prometheus / Grafana)
 
 ```bash
-python3 /mnt/c/Users/kwanj/.gemini/antigravity-ide/brain/7ea86661-d66f-4335-bbc2-92bee23da781/scratch/apply_100pct_multichain_yaml.py
-kubectl apply -f /tmp/multichain.yaml
-
-python3 /mnt/c/Users/kwanj/.gemini/antigravity-ide/brain/7ea86661-d66f-4335-bbc2-92bee23da781/scratch/apply_monitoring_stack.py
-kubectl apply -f /tmp/monitoring.yaml
+kubectl apply -f manifests/multichain.yaml
+kubectl apply -f manifests/ui-proxy.yaml
+kubectl apply -f manifests/monitoring.yaml
 ```
 
 ---
@@ -70,11 +80,15 @@ kubectl apply -f /tmp/monitoring.yaml
 
 ### 4.1 일시적 전체 재시작 (Rollout Restart)
 
-설정 변경 후 컨테이너들을 완전히 재시작하고 싶을 때 사용합니다:
+설정 변경 후 네임스페이스 내의 모든 워크로드(StatefulSet 및 Deployment)를 순차적으로 완전 재시작합니다:
 
 ```bash
-kubectl rollout restart deployment -n firefly
-kubectl delete pod firefly-0 firefly-evmconnect-0 -n firefly
+# 네임스페이스 내 모든 Deployment 및 StatefulSet 재시작
+kubectl rollout restart deployment,statefulset -n firefly
+
+# (참고) 특정 StatefulSet/파드만 직접 재시작할 경우
+# kubectl rollout restart statefulset -n firefly
+# kubectl delete pod firefly-0 firefly-evmconnect-0 -n firefly
 ```
 
 ### 4.2 전체 헬름 패키지 완전 종료 및 깨끗한 삭제 (Clean Uninstall)
@@ -82,16 +96,54 @@ kubectl delete pod firefly-0 firefly-evmconnect-0 -n firefly
 모든 데이터 및 파드를 깨끗하게 삭제하여 클러스터를 처음 상태로 되돌립니다:
 
 ```bash
+cd /home/joon/firefly/helm-charts
+
 # 1. 헬름 릴리즈 삭제
 helm uninstall firefly -n firefly
 
-# 2. 추가 멀티체인 & 모니터링 매니페스트 및 Secret 삭제
-kubectl delete -f /tmp/multichain.yaml --ignore-not-found
-kubectl delete -f /tmp/monitoring.yaml --ignore-not-found
+# 2. 추가 멀티체인, UI 프록시 & 모니터링 매니페스트 및 Secret 삭제
+kubectl delete -f manifests/multichain.yaml --ignore-not-found
+kubectl delete -f manifests/ui-proxy.yaml --ignore-not-found
+kubectl delete -f manifests/monitoring.yaml --ignore-not-found
 kubectl delete secret web3signer-keystores web3signer-passwords -n firefly --ignore-not-found
 
 # 3. 네임스페이스 리소스 전체 확인
 kubectl get all -n firefly
+```
+
+### 4.3 완전 삭제 후 처음부터 완벽 재배포 (Clean Redeploy Process)
+
+기존 배포를 흔적 없이 완전 삭제하고 처음부터 100% 자동 재배포하는 원스톱 순서입니다:
+
+```bash
+# STEP 1. 작업 디렉토리 이동
+cd /home/joon/firefly/helm-charts
+
+# STEP 2. 기존 풀스택 완전 삭제
+helm uninstall firefly -n firefly --ignore-not-found
+kubectl delete -f manifests/multichain.yaml --ignore-not-found
+kubectl delete -f manifests/ui-proxy.yaml --ignore-not-found
+kubectl delete -f manifests/monitoring.yaml --ignore-not-found
+kubectl delete secret web3signer-keystores web3signer-passwords -n firefly --ignore-not-found
+
+# STEP 3. 서명기 키스토어 Secret 재생성
+kubectl create secret generic web3signer-keystores \
+  --from-file=/home/joon/.firefly/web3signer-bulk/keystores -n firefly
+
+kubectl create secret generic web3signer-passwords \
+  --from-file=/home/joon/.firefly/web3signer-bulk/passwords -n firefly
+
+# STEP 4. 메인 헬름 풀스택 배포
+./deploy.sh
+
+# STEP 5. 추가 멀티체인, UI 프록시 & 모니터링 매니페스트 적용
+kubectl apply -f manifests/multichain.yaml
+kubectl apply -f manifests/ui-proxy.yaml
+kubectl apply -f manifests/monitoring.yaml
+
+# STEP 6. UI 접속을 위한 백그라운드 포트 포워딩 실행
+kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
 ```
 
 ---

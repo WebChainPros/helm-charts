@@ -1,0 +1,164 @@
+# Complete Monitoring Stack: Postgres Exporter + Prometheus + Grafana
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: firefly
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+      evaluation_interval: 5s
+
+    scrape_configs:
+      - job_name: 'firefly-core'
+        static_configs:
+          - targets: ['firefly:6000']
+
+      - job_name: 'postgres-exporter'
+        static_configs:
+          - targets: ['firefly-postgres-exporter:9187']
+
+      - job_name: 'evmconnect-meta'
+        static_configs:
+          - targets: ['firefly-evmconnect:5000']
+
+      - job_name: 'evmconnect-amoy'
+        static_configs:
+          - targets: ['evmconnect-amoy:5008']
+
+      - job_name: 'evmconnect-sepolia'
+        static_configs:
+          - targets: ['evmconnect-sepolia:5008']
+---
+# 1. Prometheus Deployment & Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.45.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+          ports:
+            - containerPort: 9090
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus/prometheus.yml
+              subPath: prometheus.yml
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: firefly
+spec:
+  ports:
+    - port: 9090
+      targetPort: 9090
+      name: http
+  selector:
+    app: prometheus
+
+---
+# 2. Postgres Exporter Deployment & Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefly-postgres-exporter
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: firefly-postgres-exporter
+  template:
+    metadata:
+      labels:
+        app: firefly-postgres-exporter
+    spec:
+      containers:
+        - name: postgres-exporter
+          image: prometheuscommunity/postgres-exporter:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATA_SOURCE_NAME
+              value: "postgresql://firefly:firefly-password@firefly-postgres:5432/firefly?sslmode=disable"
+          ports:
+            - containerPort: 9187
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: firefly-postgres-exporter
+  namespace: firefly
+spec:
+  ports:
+    - port: 9187
+      targetPort: 9187
+      name: http
+  selector:
+    app: firefly-postgres-exporter
+
+---
+# 3. Grafana Dashboard Deployment & Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: firefly
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin"
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+          ports:
+            - containerPort: 3000
+              name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: firefly
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http
+  selector:
+    app: grafana

@@ -1,0 +1,17 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "firefly.fullname" . }}-postgres-init
+  labels:
+    {{- include "firefly.coreLabels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+data:
+  00-init-schemas.sql: |
+    CREATE SCHEMA IF NOT EXISTS evm0;
+    CREATE SCHEMA IF NOT EXISTS evm_amoy;
+    CREATE SCHEMA IF NOT EXISTS evm_sepolia;
+    CREATE SCHEMA IF NOT EXISTS meta;
+    CREATE SCHEMA IF NOT EXISTS amoy;
+    CREATE SCHEMA IF NOT EXISTS sepolia;
+{{- end }}
