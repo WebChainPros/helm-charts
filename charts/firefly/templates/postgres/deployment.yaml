@@ -57,6 +57,9 @@ spec:
                 secretKeyRef:
                   name: {{ include "firefly.fullname" . }}-postgres-secret
                   key: postgres-db
+            {{- if .Values.postgresql.extraEnv }}
+            {{- toYaml .Values.postgresql.extraEnv | nindent 12 }}
+            {{- end }}
           ports:
             - name: postgresql
               containerPort: 5432

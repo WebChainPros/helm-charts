@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: firefly-custom-ui:v4
+          image: firefly-custom-ui:v8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
@@ -69,7 +69,7 @@ metadata:
   name: firefly-ui-proxy
   namespace: firefly
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   ports:
     - port: 5000
       targetPort: 5000

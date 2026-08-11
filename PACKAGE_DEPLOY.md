@@ -87,14 +87,20 @@ kubectl apply -f manifests/monitoring.yaml
 `ui/src/pages/Home/views/BlockchainSync.tsx`에 개발된 커스텀 UI(노드별 논스/블록 동기화 추적 컴포넌트)를 K8s 재배포 후에도 사라지지 않고 첫 화면에 항상 100% 뜨게 만드는 매핑 명령어입니다:
 
 ```bash
-# 1. 로컬 커스텀 UI 빌드본을 도커 이미지(firefly-custom-ui:latest)로 생성
+# 1. 로컬 커스텀 UI 빌드본을 도커 이미지(firefly-custom-ui:v5)로 생성
 cd /home/joon/firefly/ui
-docker build -t firefly-custom-ui:latest -f - . <<'EOF'
+npm run build
+tar -czf build.tar.gz build
+docker build -t firefly-custom-ui:v5 -f - . <<'EOF'
 FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
-COPY build /usr/share/nginx/html
-COPY build /usr/share/nginx/html/ui
+ADD build.tar.gz /usr/share/nginx/html/
+RUN cp -r /usr/share/nginx/html/build/* /usr/share/nginx/html/ && \
+    mkdir -p /usr/share/nginx/html/ui && \
+    cp -r /usr/share/nginx/html/build/* /usr/share/nginx/html/ui/ && \
+    rm -rf /usr/share/nginx/html/build
 EOF
+rm -f build.tar.gz
 
 # 2. UI 프록시 매니페스트 적용 및 파드 재시작
 cd /home/joon/firefly/helm-charts
@@ -113,14 +119,13 @@ kubectl rollout restart deployment,statefulset -n firefly
 # STEP 2. 모든 파드가 Running (READY 1/1 또는 2/2) 상태인지 확인
 kubectl get pods -n firefly -w
 
-# STEP 3. 백그라운드 포트 포워딩 재실행 (PC 재부팅 시 필수!)
+# STEP 3. 백그라운드 포트 포워딩 (ui-proxy는 LoadBalancer 타입으로 5000번 포트 상시 자동연결)
 kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
 kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
 kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
 ```
 
-> ⚠️ **주의**: PC를 껐다 켜면 기존 터미널의 포트 포워딩 프로세스가 종료되므로, 파드 재시작 후 **STEP 3(포트 포워딩)**을 반드시 다시 실행해 주어야 웹 브라우저 접속이 가능합니다.
+> 💡 **참고**: `firefly-ui-proxy` 서비스는 K8s `LoadBalancer` 타입으로 설정되어 PC/도커 데스크탑을 재부팅해도 **포트포워딩 명령 없이 `http://127.0.0.1:5000/ui` 주소로 상시 자동 접속** 가능합니다. (Grafana/Prometheus 등만 필요시 포트포워딩)
 
 ---
 

@@ -2,6 +2,11 @@
 # 100% Transferred from /home/joon/.firefly/stacks/dev_15/
 
 # ── 1. FireFly Core 설정 (멀티 체인 eth0 / eth-amoy / eth-sepolia 포함) ──────────
+core:
+  extraEnv:
+    - name: TZ
+      value: "Asia/Seoul"
+
 config:
   metricsEnabled: true
   debugEnabled: false
@@ -28,6 +33,13 @@ config:
       path: /firefly/frontend
     log:
       level: debug
+      utc: false
+      timeFormat: "2006-01-02T15:04:05.000-07:00"
+    operations:
+      timeout: 5m
+      retry:
+        enabled: true
+        maxAttempts: 3
     event:
       dbevents:
         bufferSize: 10000
@@ -116,6 +128,11 @@ config:
             url: http://tokens-sepolia:3000
 
 # ── 2. EVMConnect + Web3Signer 멀티체인 설정 ───────────────────────────
+ethconnect:
+  extraEnv:
+    - name: TZ
+      value: "Asia/Seoul"
+
 evmconnect:
   enabled: true
   image:
@@ -136,6 +153,8 @@ evmconnect:
   config:
     log:
       level: debug
+      utc: false
+      timeFormat: "2006-01-02T15:04:05.000-07:00"
     monitoring:
       enabled: true
     connector:
@@ -204,6 +223,9 @@ postgresql:
   user: "firefly"
   password: "firefly-password"
   database: "firefly"
+  extraEnv:
+    - name: TZ
+      value: "Asia/Seoul"
   resources: {}
 
 # ── 5. ERC20/721 토큰 커넥터 설정 ──────────────────────────────────
@@ -211,6 +233,9 @@ erc20erc721:
   enabled: true
   image:
     pullPolicy: IfNotPresent
+  extraEnv:
+    - name: TZ
+      value: "Asia/Seoul"
 
 # ── 6. 전역 이미지 풀 정책 & 타임존 ──────────────────────────────────────
 imagePullPolicy: IfNotPresent
@@ -218,3 +243,6 @@ imagePullPolicy: IfNotPresent
 sandbox:
   image:
     pullPolicy: IfNotPresent
+  extraEnv:
+    - name: TZ
+      value: "Asia/Seoul"

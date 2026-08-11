@@ -76,6 +76,9 @@ spec:
               value: {{ .Values.sandbox.service.port | quote }}
             - name: FF_ENDPOINT
               value: "http://{{ include "firefly.fullname" . }}:{{ .Values.core.service.httpPort }}"
+            {{- if .Values.sandbox.extraEnv }}
+            {{- toYaml .Values.sandbox.extraEnv | nindent 12 }}
+            {{- end }}
           resources:
       {{- toYaml .Values.sandbox.resources | nindent 12 }}
       {{- with .Values.sandbox.nodeSelector }}

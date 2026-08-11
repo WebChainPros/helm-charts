@@ -87,6 +87,9 @@ spec:
             {{- end }}
             - name: AUTO_INIT
               value: "true"
+            {{- if .Values.erc20erc721.extraEnv }}
+            {{- toYaml .Values.erc20erc721.extraEnv | nindent 12 }}
+            {{- end }}
           resources:
       {{- toYaml .Values.erc20erc721.resources | nindent 12 }}
       {{- with .Values.erc20erc721.nodeSelector }}

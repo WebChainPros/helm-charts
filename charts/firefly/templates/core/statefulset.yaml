@@ -95,6 +95,12 @@ spec:
           volumeMounts:
             - mountPath: /etc/firefly/
               name: firefly-config
+            - mountPath: /etc/localtime
+              name: tz-config
+              readOnly: true
+            - mountPath: /usr/share/zoneinfo
+              name: tz-data
+              readOnly: true
             {{- if .Values.core.extraVolumeMounts }}
             {{- tpl .Values.core.extraVolumeMounts . | nindent 12 }}
             {{- end }}
@@ -119,6 +125,12 @@ spec:
         - name: firefly-config
           secret:
             secretName: {{ include "firefly.fullname" . }}-config
+        - name: tz-config
+          hostPath:
+            path: /etc/localtime
+        - name: tz-data
+          hostPath:
+            path: /usr/share/zoneinfo
       {{- if .Values.core.extraVolumes }}
         {{- tpl .Values.core.extraVolumes . | nindent 8 }}
       {{- end }}

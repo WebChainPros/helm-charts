@@ -91,6 +91,12 @@ spec:
             - mountPath: /etc/evmconnect/config.yaml
               name: config
               subPath: config.yaml
+            - mountPath: /etc/localtime
+              name: tz-config
+              readOnly: true
+            - mountPath: /usr/share/zoneinfo
+              name: tz-data
+              readOnly: true
       {{- if .Values.extraContainers }}
         {{- tpl .Values.extraContainers . | nindent 8 }}
       {{- end }}
@@ -110,6 +116,12 @@ spec:
         - name: config
           secret:
             secretName: "{{ include "firefly-evmconnect.fullname" . }}-config"
+        - name: tz-config
+          hostPath:
+            path: /etc/localtime
+        - name: tz-data
+          hostPath:
+            path: /usr/share/zoneinfo
   volumeClaimTemplates:
   {{- if eq .Values.config.persistence.type "leveldb" }}
     - metadata:
