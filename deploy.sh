@@ -12,7 +12,8 @@ if [ ! -f "${ENV_FILE}" ]; then
 fi
 
 # Auto-fix Windows CRLF line endings if present
-sed -i 's/\r//' "${ENV_FILE}"
+sed -i '' -e 's/\r$//' "${ENV_FILE}" 2>/dev/null || sed -i -e 's/\r$//' "${ENV_FILE}" 2>/dev/null || true
+
 
 set -a
 source "${ENV_FILE}"
