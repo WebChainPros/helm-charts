@@ -57,75 +57,80 @@ kubectl create secret generic web3signer-passwords \
 
 ## 🚀 3. 전체 배포 및 실행 프로세스
 
-### 3.1 기본 빠른 배포 (Meta-net 코어 풀스택 - 권장 🚀)
+### 3.1 원스톱 자동 배포 (Meta-net 코어 풀스택 + UI Proxy + Monitoring 🚀)
 
-메인넷(`meta`) 코어 엔진, DB, UI 프록시 및 모니터링 스택을 ** 가장 가볍고 빠르게(10~15초 내) 기동하는 권장 배포 방법**입니다:
+`./deploy.sh` 스크립트 하나로 **Core 엔진, EVMConnect, DB, Web3Signer Secret 생성, UI Proxy, 모니터링 스택까지 한 번에 자동 배포**됩니다:
 
 ```bash
-cd /home/joon/firefly/helm-charts
+# 1. 템플릿 복사 (최초 1회)
+cp values/.env.example values/.env
+
+# 2. 원라인 풀스택 배포 (끝!)
 ./deploy.sh
-kubectl apply -f manifests/ui-proxy.yaml
-kubectl apply -f manifests/monitoring.yaml
+
+# 3. 5500번 포트 포워딩 실행
+nohup kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 > /dev/null 2>&1 &
 ```
 
-### 3.1 멀티체인 풀스택 배포 (Meta-net + Amoy + Sepolia - 권장 🚀)
+👉 **대시보드 접속**: [http://127.0.0.1:5500/ui/](http://127.0.0.1:5500/ui/)
 
-FireFly 코어 엔진 설정(`firefly-config`)에는 `meta`, `amoy`, `sepolia` 3개 네임스페이스가 등록되어 있으므로, 코어 파드의 헬스체크 타임아웃 에러를 방지하고 멀티체인 전체를 연결하려면 아래 명령어로 풀스택을 배포합니다:
+---
+
+### 3.2 멀티체인 풀스택 배포 (Meta-net + Amoy + Sepolia 🚀)
+
+FireFly 코어 엔진 설정(`firefly-config`)에 등록된 `meta`, `amoy`, `sepolia` 3개 멀티체인 전체를 연결하려면 `./deploy.sh` 실행 후 `multichain.yaml`만 추가 적용합니다:
 
 ```bash
-cd /home/joon/firefly/helm-charts
 ./deploy.sh
 kubectl apply -f manifests/multichain.yaml
-kubectl apply -f manifests/ui-proxy.yaml
-kubectl apply -f manifests/monitoring.yaml
 ```
 
-> 💡 **참고 (로그 에러 원인)**: `multichain.yaml` 파드를 삭제하면 `firefly-0` 엔진 설정에 남아있는 `amoy`/`sepolia` 네임스페이스가 5008 포트로 주기적인 연결 시도를 하므로 `context deadline exceeded` 로그 에러가 발생하게 됩니다. 따라서 `multichain.yaml` 매니페스트를 함께 적용해 두는 것이 가장 안정적인 상태입니다.
+---
 
-### 3.2 🎨 커스텀 Explorer UI 빌드 & K8s 매핑 (노드별 논스/블록 추적 대시보드 영속화)
+### 3.3 🎨 커스텀 Explorer UI 개발 및 GHCR 배포 원칙
 
-`ui/src/pages/Home/views/BlockchainSync.tsx`에 개발된 커스텀 UI(노드별 논스/블록 동기화 추적 컴포넌트)를 K8s 재배포 후에도 사라지지 않고 첫 화면에 항상 100% 뜨게 만드는 매핑 명령어입니다:
+* **일상 배포**: `manifests/ui-proxy.yaml`이 원격 컨테이너 저장소(`ghcr.io/webchainpro-cpu/firefly-custom-ui:v8`)를 참조하므로, **UI 소스코드 빌드 없이 즉시 배포**됩니다.
+* **UI 소스코드 수정 시**: React 컴포넌트(`ui/src/pages/Home/views/BlockchainSync.tsx` 등)를 새로 개발/수정했을 때만 도커 멀티스테이지 빌드 후 GHCR로 푸시합니다:
 
 ```bash
-# 1. 로컬 커스텀 UI 빌드본을 도커 이미지(firefly-custom-ui:v5)로 생성
-cd /home/joon/firefly/ui
-npm run build
-tar -czf build.tar.gz build
-docker build -t firefly-custom-ui:v5 -f - . <<'EOF'
+# UI 빌드 및 GHCR 푸시
+cd /Users/joon/workspaces/firefly/ui
+docker build -t ghcr.io/webchainpro-cpu/firefly-custom-ui:v8 -f - . << 'EOF'
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+COPY . .
+ENV DISABLE_ESLINT_PLUGIN=true
+RUN npm run build
 FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
-ADD build.tar.gz /usr/share/nginx/html/
-RUN cp -r /usr/share/nginx/html/build/* /usr/share/nginx/html/ && \
-    mkdir -p /usr/share/nginx/html/ui && \
-    cp -r /usr/share/nginx/html/build/* /usr/share/nginx/html/ui/ && \
-    rm -rf /usr/share/nginx/html/build
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY --from=builder /app/build /usr/share/nginx/html/ui
 EOF
-rm -f build.tar.gz
+docker push ghcr.io/webchainpro-cpu/firefly-custom-ui:v8
 
-# 2. UI 프록시 매니페스트 적용 및 파드 재시작
-cd /home/joon/firefly/helm-charts
-kubectl apply -f manifests/ui-proxy.yaml
+# 파드 롤아웃 리스타트
+cd /Users/joon/workspaces/helm-charts
 kubectl rollout restart deploy/firefly-ui-proxy -n firefly
 ```
 
-### 3.3 🔄 PC / 도커 데스크탑 재부팅 후 일상적인 재기동 순서 (Daily Resume Guide)
+---
 
-PC 및 도커 데스크탑을 재부팅한 경우, 쿠버네티스 컨트롤러가 기존 파드들을 자동 복구하려고 시도합니다. 다만 안전한 재기동과 외부 접속(UI/API)을 위해 아래 순서를 따릅니다:
+### 3.4 🔄 PC / 도커 데스크탑 재부팅 후 일상적인 재기동 순서 (Daily Resume Guide)
+
+PC 및 도커 데스크탑을 재부팅한 경우 아래 순서로 빠르게 서비스를 복구합니다:
 
 ```bash
 # STEP 1. 네임스페이스 내 모든 파드 일괄 순차 재시작 (깔끔한 재기동)
 kubectl rollout restart deployment,statefulset -n firefly
 
-# STEP 2. 모든 파드가 Running (READY 1/1 또는 2/2) 상태인지 확인
+# STEP 2. 모든 파드가 Running (READY 1/1) 상태인지 확인
 kubectl get pods -n firefly -w
 
-# STEP 3. 백그라운드 포트 포워딩 (ui-proxy는 LoadBalancer 타입으로 5000번 포트 상시 자동연결)
-kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
+# STEP 3. 5500 포트 포워딩 실행
+nohup kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 > /dev/null 2>&1 &
 ```
-
-> 💡 **참고**: `firefly-ui-proxy` 서비스는 K8s `LoadBalancer` 타입으로 설정되어 PC/도커 데스크탑을 재부팅해도 **포트포워딩 명령 없이 `http://127.0.0.1:5000/ui` 주소로 상시 자동 접속** 가능합니다. (Grafana/Prometheus 등만 필요시 포트포워딩)
 
 ---
 
@@ -179,37 +184,14 @@ kubectl delete -f manifests/ui-proxy.yaml --ignore-not-found
 kubectl delete -f manifests/monitoring.yaml --ignore-not-found
 kubectl delete secret web3signer-keystores web3signer-passwords -n firefly --ignore-not-found
 
-# STEP 3. 서명기 키스토어 Secret 재생성
-kubectl create secret generic web3signer-keystores \
-  --from-file=/home/joon/.firefly/web3signer-bulk/keystores -n firefly
-
-kubectl create secret generic web3signer-passwords \
-  --from-file=/home/joon/.firefly/web3signer-bulk/passwords -n firefly
-
-# STEP 4. 커스텀 UI 도커 이미지 빌드 (BlockchainSync 노드별 논스/블록 추적 대시보드 영속화)
-cd /home/joon/firefly/ui
-docker build -t firefly-custom-ui:latest -f - . <<'EOF'
-FROM nginx:alpine
-RUN rm -rf /usr/share/nginx/html/*
-COPY build /usr/share/nginx/html
-COPY build /usr/share/nginx/html/ui
-EOF
-
-# STEP 5. 풀스택 배포 & 확장 매니페스트 적용
-cd /home/joon/firefly/helm-charts
+# STEP 3. 원스톱 자동 재배포 (Secret 생성, 헬름 배포, UI Proxy, 모니터링 자동 실행)
 ./deploy.sh
+
+# STEP 4. (선택) 멀티체인 확장 파드 적용
 kubectl apply -f manifests/multichain.yaml
-kubectl apply -f manifests/ui-proxy.yaml
-kubectl apply -f manifests/monitoring.yaml
 
-# STEP 6. 파드 생성 상태 실시간 모니터링 (모든 파드가 Running이 되면 Ctrl+C로 탈출)
-kubectl get pods -n firefly -w
-
-# STEP 7. UI 및 모니터링 접속을 위한 백그라운드 포트 포워딩 실행 (5500번 포트 표준)
-kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
+# STEP 5. 5500번 포트 포워딩 실행
+nohup kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 > /dev/null 2>&1 &
 ```
 
 ---
