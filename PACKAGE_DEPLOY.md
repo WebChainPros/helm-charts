@@ -205,9 +205,9 @@ kubectl apply -f manifests/monitoring.yaml
 # STEP 6. 파드 생성 상태 실시간 모니터링 (모든 파드가 Running이 되면 Ctrl+C로 탈출)
 kubectl get pods -n firefly -w
 
-# STEP 7. UI 및 모니터링 접속을 위한 백그라운드 포트 포워딩 실행
+# STEP 7. UI 및 모니터링 접속을 위한 백그라운드 포트 포워딩 실행 (5500번 포트 표준)
 kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
-kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
+kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 &
 kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
 kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
 ```
@@ -272,14 +272,16 @@ kubectl logs firefly-evmconnect-web3signer-7f86cd856-gjbh8 -n firefly -p
 
 ## 🌐 6. 포트 포워딩 및 UI / 모니터링 접속
 
-### 6.1 백그라운드 포트 포워딩 실행
+### 6.1 백그라운드 포트 포워딩 실행 (5500번 포트 표준)
+
+> 💡 **안내 (macOS AirPlay 5000번 포트 충돌 방지)**: macOS에서는 AirPlay 수신 모드(AirTunes)가 5000번 포트를 점유하고 있어 충돌(403 Forbidden)이 발생하므로, UI 프록시 포워딩 시 **5500번 포트(`5500:5000`)를 표준으로 사용**합니다.
 
 ```bash
 # 1. 5109 포트 (기존 dev_15 Sandbox Explorer UI 전용)
 kubectl port-forward svc/firefly-sandbox 5109:3001 -n firefly --address 0.0.0.0 &
 
-# 2. 5000 포트 (통합 Nginx 프록시 - UI 및 API 겸용)
-kubectl port-forward svc/firefly-ui-proxy 5000:5000 -n firefly --address 0.0.0.0 &
+# 2. 5500 포트 (통합 Nginx 프록시 - UI 및 API 겸용 표준 포트)
+kubectl port-forward svc/firefly-ui-proxy 5500:5000 -n firefly --address 0.0.0.0 &
 
 # 3. 3300 포트 (Grafana 실시간 그래픽 대시보드 UI)
 kubectl port-forward svc/grafana 3300:3000 -n firefly --address 0.0.0.0 &
@@ -292,9 +294,9 @@ kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
 
 | 용도 | 접속 주소 (URL) | 설명 / 로그인 |
 | :--- | :--- | :--- |
-| **Explorer 대시보드 UI (dev_15 동일)** | `http://127.0.0.1:5109` | 기존 `ff start` 개발환경과 100% 동일한 대시보드 |
-| **통합 Explorer 대시보드 UI** | `http://127.0.0.1:5000/ui` | Nginx 프록시 기반 대시보드 화면 |
-| **FireFly Swagger API 문서** | `http://127.0.0.1:5000/api` | REST API 대화형 Swagger 문서 |
+| **통합 Custom Explorer 대시보드 UI** | `http://127.0.0.1:5500/ui` | Nginx 프록시 기반 대시보드 화면 |
+| **FireFly Swagger API 문서** | `http://127.0.0.1:5500/api` | REST API 대화형 Swagger 문서 |
+| **Explorer 대시보드 UI (Sandbox)** | `http://127.0.0.1:5109` | 기존 `ff start` 개발환경과 100% 동일한 대시보드 |
 | **Grafana 그래픽 대시보드** | `http://127.0.0.1:3300` | ID: `admin` / PW: `admin` (시스템 TPS & DB 모니터링) |
 | **Prometheus 메트릭 타겟** | `http://127.0.0.1:9090` | Prometheus 메트릭 수집 현황 수집기 |
 
