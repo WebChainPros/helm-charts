@@ -284,9 +284,32 @@ kubectl port-forward svc/prometheus 9090:9090 -n firefly --address 0.0.0.0 &
 
 ---
 
-## 🛠️ 7. 팁: Base64 설정 원본 디코딩해서 꺼내보기
+## 🛠️ 7. 유용한 운영/검증 팁 (실제 배포 상태 및 설정 확인)
 
-쿠버네티스 메모리 내부에 암호화 저장된 설정 원본을 직접 사람이 읽을 수 있는 평문 YAML로 꺼내는 법:
+### 7.1 현재 떠 있는 Pod들의 실제 컨테이너 이미지 확인
+클러스터에 실행 중인 각 파드가 실제로 어떤 컨테이너 이미지를 바라보고 있는지 확인합니다:
+
+```bash
+kubectl get pods -n firefly -o custom-columns='NAME:.metadata.name,IMAGE:.spec.containers[*].image'
+```
+> 💡 **확인 팁**: `firefly-evmconnect-0`이 `ghcr.io/webchainpro-cpu/evmconnect:head` 커스텀 이미지를 정상적으로 사용 중인지 확인할 수 있습니다.
+
+### 7.2 Helm이 렌더링해서 배포한 전체 Kubernetes 매니페스트 확인
+Helm이 템플릿을 렌더링하여 클러스터에 실제 배포한 최종 Kubernetes 매니페스트(StatefulSet, Deployment, Service, Secret 등) 전체를 확인합니다:
+
+```bash
+helm get manifest firefly -n firefly
+```
+
+### 7.3 실제 배포에 적용된 사용자 Helm Values 확인
+배포 시점에 실제로 주입되어 클러스터에 저장된 최종 `values` 설정을 확인합니다:
+
+```bash
+helm get values firefly -n firefly
+```
+
+### 7.4 Base64 설정 원본 디코딩해서 꺼내보기
+쿠버네티스 Secret 내부에 암호화 저장된 설정 원본을 직접 사람이 읽을 수 있는 평문 YAML로 꺼내는 법:
 
 ```bash
 # Core 설정 원본 디코딩
