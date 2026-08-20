@@ -673,4 +673,6 @@ postgresql:
   user: "firefly"
   password: "firefly-password"
   database: "firefly"
+  service:
+    type: ClusterIP
   resources: {}

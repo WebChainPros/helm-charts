@@ -10,7 +10,7 @@ metadata:
     {{- include "firefly.coreLabels" . | nindent 4 }}
     app.kubernetes.io/component: postgresql
 spec:
-  type: ClusterIP
+  type: {{ if .Values.postgresql.service }}{{ .Values.postgresql.service.type | default "ClusterIP" }}{{ else }}ClusterIP{{ end }}
   ports:
     - port: 5432
       targetPort: postgresql

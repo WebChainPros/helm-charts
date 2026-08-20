@@ -216,6 +216,8 @@ dataexchange:
 # ── 4. PostgreSQL 데이터베이스 설정 (튜닝 옵션 100% 반영) ─────────────────
 postgresql:
   enabled: true
+  service:
+    type: LoadBalancer
   image:
     repository: postgres
     tag: "14-alpine"
