@@ -50,7 +50,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: ghcr.io/webchainpro-cpu/firefly-custom-ui:v9
+          image: ghcr.io/webchainpro-cpu/firefly-custom-ui:v10
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
