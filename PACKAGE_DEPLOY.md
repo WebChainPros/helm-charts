@@ -89,13 +89,13 @@ kubectl apply -f manifests/multichain.yaml
 
 ### 3.3 🎨 커스텀 Explorer UI 개발 및 GHCR 배포 원칙
 
-* **일상 배포**: `manifests/ui-proxy.yaml`이 원격 컨테이너 저장소(`ghcr.io/webchainpro-cpu/firefly-custom-ui:v8`)를 참조하므로, **UI 소스코드 빌드 없이 즉시 배포**됩니다.
+* **일상 배포**: `manifests/ui-proxy.yaml`이 원격 컨테이너 저장소(`ghcr.io/webchainpro-cpu/firefly-custom-ui:v9`)를 참조하므로, **UI 소스코드 빌드 없이 즉시 배포**됩니다.
 * **UI 소스코드 수정 시**: React 컴포넌트(`ui/src/pages/Home/views/BlockchainSync.tsx` 등)를 새로 개발/수정했을 때만 도커 멀티스테이지 빌드 후 GHCR로 푸시합니다:
 
 ```bash
 # UI 빌드 및 GHCR 푸시
 cd /Users/joon/workspaces/firefly/ui
-docker build -t ghcr.io/webchainpro-cpu/firefly-custom-ui:v8 -f - . << 'EOF'
+docker build -t ghcr.io/webchainpro-cpu/firefly-custom-ui:v9 -f - . << 'EOF'
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -108,7 +108,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY --from=builder /app/build /usr/share/nginx/html/ui
 EOF
-docker push ghcr.io/webchainpro-cpu/firefly-custom-ui:v8
+docker push ghcr.io/webchainpro-cpu/firefly-custom-ui:v9
 
 # 파드 롤아웃 리스타트
 cd /Users/joon/workspaces/helm-charts
